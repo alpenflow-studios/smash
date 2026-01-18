@@ -1,93 +1,36 @@
-<<<<<<< HEAD
-# smash
-smash.xyz
-=======
-# Base MCP Project
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-A professional blockchain development project using Hardhat, TypeScript, and AgentKit.
+## Getting Started
 
-## Prerequisites
-
-- Node.js v22.x (LTS) - **Important:** Node.js v25.x is not supported by Hardhat
-- npm or yarn
-
-## Installation
+First, run the development server:
 
 ```bash
-npm install
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-## Project Structure
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```
-.
-├── contracts/          # Solidity smart contracts
-├── scripts/           # Deployment scripts
-├── test/              # Contract tests
-├── src/               # TypeScript source code
-│   └── lib/          # Libraries and utilities
-├── server.js         # MCP server
-└── hardhat.config.ts # Hardhat configuration
-```
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Available Scripts
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-- `npm run compile` - Compile smart contracts
-- `npm test` - Run contract tests
-- `npm run build` - Build TypeScript
-- `npm run lint` - Check code quality
-- `npm run lint:fix` - Fix linting issues
-- `npm run format` - Format code with Prettier
-- `npm run typecheck` - Type check without emitting
-- `npm run node` - Start local Hardhat node
-- `npm run deploy` - Deploy contracts
+## Learn More
 
-## Environment Variables
+To learn more about Next.js, take a look at the following resources:
 
-Create a `.env` file with:
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-```env
-# Coinbase CDP API Keys
-CDP_API_KEY_NAME=your_key_name
-CDP_API_KEY_PRIVATE_KEY=your_private_key
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-# Private Key (for deployments)
-PRIVATE_KEY=your_private_key_without_0x
+## Deploy on Vercel
 
-# RPC URLs (optional)
-BASE_RPC_URL=https://mainnet.base.org
-BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-# Block Explorer API Key
-BASESCAN_API_KEY=your_basescan_api_key
-```
-
-**🚨 SECURITY WARNING:** Never commit `.env` file or private keys to version control!
-
-## Development
-
-1. Start local Hardhat node:
-   ```bash
-   npm run node
-   ```
-
-2. In another terminal, deploy contracts:
-   ```bash
-   npm run deploy
-   ```
-
-3. Run tests:
-   ```bash
-   npm test
-   ```
-
-## Networks
-
-- **Local:** Hardhat Network (chainId: 1337)
-- **Base Mainnet:** chainId 8453
-- **Base Sepolia Testnet:** chainId 84532
-
-## License
-
-ISC
->>>>>>> 614694d (Add Hardhat, TypeScript, ESLint, and project structure)
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
