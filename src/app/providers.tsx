@@ -14,7 +14,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
         loginMethods: ['email', 'wallet', 'google'],
         embeddedWallets: {
-          createOnLogin: 'users-without-wallets',
+          ethereum: {
+            createOnLogin: 'users-without-wallets'
+          }
         },
         defaultChain: polygon,
         supportedChains: [polygon],
