@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "smash.xyz - Challenge Anything. Proof is Everything.",
+  title: "smash.xyz - Smash Anything. Prove Everything.",
   description: "Create competitive challenges with real stakes",
 };
 
