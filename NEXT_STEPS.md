@@ -1,206 +1,154 @@
 # Next Steps for Smash.xyz
 
-## Immediate Priority (Session 2)
+## Completed ✅
 
-### 1. Fix Vercel Deployment ⚠️
-**Status:** Build failing due to Privy dependency conflicts
+### Session 1 (Jan 17-18, 2026)
+- ✅ Next.js foundation with TypeScript
+- ✅ Tailwind CSS + Shadcn/UI
+- ✅ Homepage with SmashCards
+- ✅ Privy wallet authentication
+- ✅ GitHub repo + Vercel deployment
+- ✅ Domain: smash.xyz
 
-**Solution:**
-- `.npmrc` file has been added with `legacy-peer-deps=true`
-- Need to redeploy in Vercel
-- Add `NEXT_PUBLIC_PRIVY_APP_ID` environment variable in Vercel
-
-**Steps:**
-1. Go to Vercel dashboard
-2. Click "Redeploy" on latest deployment
-3. Settings → Environment Variables → Add Privy app ID
-4. Test at smash.xyz
+### Session 2 (Jan 18-19, 2026)
+- ✅ Fixed Privy v3 configuration
+- ✅ Fixed package.json devDependencies
+- ✅ Supabase project created (smashsmash.xyz)
+- ✅ Database tables: users, smashes, submissions, bets
+- ✅ Row Level Security enabled
+- ✅ Supabase client + types added to project
+- ✅ Environment variables in Vercel
+- ✅ Created SMASH_SPEC.md with full feature specification
 
 ---
 
-### 2. Setup Database (Supabase) 🗄️
+## Session 3 Priority: Create Smash Feature 🚀
 
-**Why Supabase:**
-- Postgres (robust queries)
-- Built-in file storage (for proof uploads)
-- Real-time subscriptions
-- Row Level Security
-- Free tier is generous
+### Pre-work: Database Updates
+Run this SQL in Supabase to add missing columns:
 
-**Schema to Create:**
-
-**Users Table:**
 ```sql
-create table users (
-  id uuid primary key default gen_random_uuid(),
-  wallet_address text unique not null,
-  username text,
-  avatar_url text,
-  reputation_score integer default 0,
-  created_at timestamp default now()
-);
+-- Add new columns to smashes table
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS visibility text DEFAULT 'public';
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS stakes_type text DEFAULT 'monetary';
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS invite_code text;
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS consensus_threshold int DEFAULT 100;
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS dispute_window_hours int DEFAULT 24;
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS cover_image_url text;
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS min_participants int DEFAULT 2;
+
+-- Add index for invite codes (for private smash lookups)
+CREATE INDEX IF NOT EXISTS idx_smashes_invite_code ON smashes(invite_code);
 ```
 
-**Smashes Table:**
-```sql
-create table smashes (
-  id uuid primary key default gen_random_uuid(),
-  title text not null,
-  description text,
-  category text not null,
-  status text not null,
-  entry_fee decimal,
-  prize_pool decimal,
-  creator_id uuid references users(id),
-  max_participants integer,
-  starts_at timestamp,
-  ends_at timestamp,
-  verification_method text,
-  betting_enabled boolean default false,
-  created_at timestamp default now()
-);
+### Build: Create Smash Page (/create)
+
+**Files to create:**
+```
+src/app/create/page.tsx        # Main create page
+src/components/create/
+  ├── CreateSmashForm.tsx      # Multi-step form container
+  ├── StepBasics.tsx           # Title, description, category
+  ├── StepVisibility.tsx       # Public/private, stakes type
+  ├── StepParticipants.tsx     # Min/max, invite list
+  ├── StepTimeline.tsx         # Start/end dates
+  ├── StepVerification.tsx     # Consensus method
+  ├── StepPrediction.tsx       # Betting toggle
+  └── StepReview.tsx           # Summary + create button
 ```
 
-**Submissions Table:**
-```sql
-create table submissions (
-  id uuid primary key default gen_random_uuid(),
-  smash_id uuid references smashes(id),
-  user_id uuid references users(id),
-  proof_url text not null,
-  proof_type text,
-  verified boolean default false,
-  submitted_at timestamp default now()
-);
+**Form State (Zustand or React state):**
+```typescript
+interface CreateSmashState {
+  // Step 1: Basics
+  title: string
+  description: string
+  category: 'fitness' | 'gaming' | 'creative' | 'social' | 'other'
+  coverImage: File | null
+  
+  // Step 2: Visibility
+  visibility: 'public' | 'private'
+  stakesType: 'monetary' | 'prize' | 'bragging'
+  entryFee: number | null
+  prizeDescription: string | null
+  
+  // Step 3: Participants
+  minParticipants: number
+  maxParticipants: number | null
+  inviteList: string[] // wallet addresses
+  
+  // Step 4: Timeline
+  startsAt: Date
+  endsAt: Date
+  verificationWindowHours: number
+  
+  // Step 5: Verification
+  verificationMethod: 'wearable' | 'visual' | 'participant' | 'audience' | 'hybrid'
+  consensusThreshold: number
+  disputeWindowHours: number
+  
+  // Step 6: Prediction Market
+  bettingEnabled: boolean
+  bettingDeadline: Date | null
+}
 ```
 
----
-
-### 3. Build Core Features 🚀
-
-**Priority Order:**
-
-**A. Smash Detail Page** (2-3 hours)
-- Route: `/smash/[id]`
-- Show full smash details
-- Participant list
-- Join button (functional)
-- Bet interface (basic)
-
-**B. Create Smash Form** (3-4 hours)
-- Modal or dedicated page
-- Form fields for all smash properties
-- Category selection
-- Entry fee and prize settings
-- Save to Supabase
-
-**C. Proof Upload** (2-3 hours)
-- File upload component (photos/videos)
-- Store in Supabase Storage
-- Link to submission record
-- Display in submission queue
-
-**D. User Profile** (2 hours)
-- Route: `/profile/[address]`
-- Show user stats
-- List of joined smashes
-- Completed challenges
-- Wallet info
+### After Create Smash:
+1. **Smash Detail Page** (/smash/[id]) - View single smash
+2. **Replace Homepage Mock Data** - Pull from Supabase
+3. **Proof Submission** - Upload images/videos
+4. **User Profile** - Show joined smashes
 
 ---
 
-### 4. Smart Contracts (Week 2) ⛓️
+## Technical Debt / Improvements
 
-**Contracts Needed:**
-
-**SmashFactory.sol:**
-- Create smash with escrow
-- Join smash (deposit entry fee)
-- Verify completion
-- Distribute prize pool
-
-**PredictionMarket.sol:**
-- Binary outcome markets (YES/NO)
-- Betting on participants
-- UMA oracle integration for resolution
-- Automated payouts
-
-**Deploy to:**
-- Polygon Mumbai (testnet first)
-- Then Polygon Mainnet
+- [ ] Add loading states to all async operations
+- [ ] Add error boundaries
+- [ ] Add form validation (zod or yup)
+- [ ] Add image upload to Supabase Storage
+- [ ] Add real-time subscriptions for live updates
+- [ ] Mobile responsive testing
 
 ---
 
-### 5. Payment Flow 💰
+## Smart Contracts (Week 2+)
 
-**Wallet → USDC → Smash Entry:**
-1. User connects wallet
-2. Approve USDC spending
-3. Deposit entry fee to contract
-4. Contract holds funds in escrow
-5. Winner verification triggers payout
+### SmashFactory.sol
+- createSmash() - Deploy new smash with escrow
+- joinSmash() - Deposit entry fee
+- submitProof() - Record proof hash on-chain
+- resolveSmash() - Distribute prize pool
+- disputeSmash() - Initiate dispute process
 
-**Implementation:**
-- Use Wagmi hooks for contract interactions
-- Show transaction status
-- Handle errors gracefully
+### PredictionMarket.sol
+- placeBet() - Bet YES/NO on participant
+- closeBetting() - Lock bets at start time
+- resolveBets() - Payout based on outcome
+- claimWinnings() - Withdraw winnings
 
----
-
-## Future Features (Backlog)
-
-### Polish & UX
-- Loading states
-- Error boundaries
-- Toast notifications
-- Skeleton loaders
-
-### Social Features
-- Comments on smashes
-- Like/react to proofs
-- Share to social media
-- Invite friends
-
-### Advanced Features
-- Team smashes
-- Recurring challenges
-- Leaderboards (all-time, weekly)
-- Achievement badges
-- Referral system
-
-### Monetization
-- Platform fee (10% of entry fees)
-- Betting volume fee (2.5%)
-- Premium features
-- Sponsorship integration
-
----
-
-## Development Workflow
-
-**Daily:**
-1. Pull latest from main
-2. Run `npm run dev`
-3. Build one feature
-4. Test locally
-5. Commit and push
-6. Vercel auto-deploys
-
-**Testing:**
-- Use Polygon Mumbai testnet
-- Test wallet with test ETH/USDC
-- Invite friends to beta test
+### Deploy to:
+1. Polygon Mumbai (testnet) first
+2. Polygon Mainnet when ready
 
 ---
 
 ## Resources
 
-**Docs:**
-- Next.js: https://nextjs.org/docs
-- Privy: https://docs.privy.io
-- Supabase: https://supabase.com/docs
-- Wagmi: https://wagmi.sh
-- UMA: https://docs.uma.xyz
+- **Supabase Dashboard:** https://supabase.com/dashboard/project/pdjrexphjivdwfbvgbqm
+- **Vercel Dashboard:** https://vercel.com/classcoin/v0-smash-xyz
+- **GitHub Repo:** https://github.com/alpenflow-studios/smash
+- **Live Site:** https://smash.xyz
+- **Inspiration:** https://poidh.xyz
+
+---
+
+## How to Continue with Claude Code
+
+1. Open VS Code with smash project
+2. Open Claude Code extension
+3. Say: "Read SMASH_SPEC.md and NEXT_STEPS.md, then let's build the Create Smash form"
+4. Claude Code will create files directly in your project
 
 **Inspiration:**
 - Polymarket.com (prediction markets)
