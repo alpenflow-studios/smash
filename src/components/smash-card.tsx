@@ -16,11 +16,10 @@ export function SmashCard({ smash, onJoin, onBet }: SmashCardProps) {
       fitness: 'bg-blue-500/10 text-blue-500',
       gaming: 'bg-green-500/10 text-green-500',
       creative: 'bg-pink-500/10 text-pink-500',
-      food: 'bg-orange-500/10 text-orange-500',
-      professional: 'bg-yellow-500/10 text-yellow-500',
-      absurd: 'bg-purple-500/10 text-purple-500',
+      social: 'bg-orange-500/10 text-orange-500',
+      other: 'bg-purple-500/10 text-purple-500',
     };
-    return colors[category as keyof typeof colors] || colors.fitness;
+    return colors[category as keyof typeof colors] || colors.other;
   };
 
   const getTimeRemaining = () => {

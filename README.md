@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Smash.xyz
+
+A competitive challenge platform where completion must be proven and verified through consensus. Think "proof or it didn't happen" meets prediction markets.
+
+**Live Site:** https://smash.xyz
+
+## What is a Smash?
+
+A **Smash** is a competitive challenge between 2+ participants. Examples:
+- Run a 5K in under 25 minutes
+- Beat a video game boss without taking damage
+- Create the best AI-generated artwork
+
+Participants submit proof (photos, videos, fitness data) and the community verifies completion.
+
+## Features
+
+- **Wallet Authentication** - Connect with Privy (supports MetaMask, WalletConnect, etc.)
+- **Multiple Verification Methods** - Wearable data, visual proof, participant voting, audience voting
+- **Prediction Markets** - Bet on participants (public smashes only)
+- **Flexible Stakes** - Monetary (USDC/ETH), prizes, or bragging rights
+
+## Tech Stack
+
+- **Frontend:** Next.js 16, React 19, TypeScript
+- **Styling:** Tailwind CSS 4, shadcn/ui
+- **Auth:** Privy
+- **Database:** Supabase (PostgreSQL)
+- **State:** Zustand
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/alpenflow-studios/smash.git
+cd smash
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Set up environment variables
+
+Copy the example file and fill in your keys:
+
+```bash
+cp .env.example .env.local
+```
+
+You'll need:
+- **Privy App ID** - Get from [Privy Dashboard](https://dashboard.privy.io/)
+- **Supabase URL & Anon Key** - Get from [Supabase Dashboard](https://supabase.com/dashboard) → Settings → API
+
+### 4. Run the development server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                 # Next.js pages
+│   ├── page.tsx         # Homepage with SmashCards
+│   ├── create/          # Create new smash form
+│   └── layout.tsx       # Root layout with providers
+├── components/
+│   ├── ui/              # shadcn/ui components
+│   ├── create/          # Multi-step form components
+│   ├── smash-card.tsx   # Smash preview card
+│   └── wallet-connect.tsx
+├── lib/
+│   ├── supabase.ts      # Supabase client
+│   └── database.types.ts # Auto-generated types
+├── store/
+│   └── use-create-smash.ts # Zustand store for form
+└── types/
+    └── index.ts         # Shared TypeScript types
+```
 
-## Learn More
+## Database Schema
 
-To learn more about Next.js, take a look at the following resources:
+Main tables in Supabase:
+- `users` - Wallet addresses and profiles
+- `smashes` - Challenge details
+- `submissions` - Proof submissions
+- `bets` - Prediction market bets
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+See [SMASH_SPEC.md](./SMASH_SPEC.md) for full specification.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+The app is deployed on Vercel. Push to `main` to deploy automatically.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Make sure to set environment variables in Vercel:
+- `NEXT_PUBLIC_PRIVY_APP_ID`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Resources
+
+- [SMASH_SPEC.md](./SMASH_SPEC.md) - Full feature specification
+- [NEXT_STEPS.md](./NEXT_STEPS.md) - Development roadmap
+- [Supabase Dashboard](https://supabase.com/dashboard/project/pdjrexphjivdwfbvgbqm)
+- [Vercel Dashboard](https://vercel.com/classcoin/v0-smash-xyz)
+
+## Inspiration
+
+- [poidh.xyz](https://poidh.xyz) - Proof bounties
+- [Polymarket](https://polymarket.com) - Prediction markets
+- [Strava](https://strava.com) - Fitness challenges

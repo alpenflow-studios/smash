@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { SmashCard } from '@/components/smash-card';
 import { WalletConnect } from '@/components/wallet-connect';
 import { mockSmashes } from '@/lib/mock-data';
@@ -30,9 +31,12 @@ export default function Home() {
           <p className="text-xl text-gray-400 mb-8">
             Create competitive challenges with real stakes. Join smashes. Win together.
           </p>
-          <button className="px-8 py-4 bg-purple-600 rounded-lg text-lg font-semibold hover:bg-purple-700 transition">
+          <Link 
+            href="/create"
+            className="inline-block px-8 py-4 bg-purple-600 rounded-lg text-lg font-semibold hover:bg-purple-700 transition"
+          >
             Create Your First Smash
-          </button>
+          </Link>
         </div>
 
         {/* Real Smash Cards */}

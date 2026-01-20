@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       users: {
@@ -46,10 +46,17 @@ export interface Database {
           prize_pool: number | null
           creator_id: string | null
           max_participants: number | null
+          min_participants: number
           starts_at: string | null
           ends_at: string | null
           verification_method: string | null
           betting_enabled: boolean
+          visibility: string
+          stakes_type: string
+          invite_code: string | null
+          consensus_threshold: number
+          dispute_window_hours: number
+          cover_image_url: string | null
           created_at: string
         }
         Insert: {
@@ -62,10 +69,17 @@ export interface Database {
           prize_pool?: number | null
           creator_id?: string | null
           max_participants?: number | null
+          min_participants?: number
           starts_at?: string | null
           ends_at?: string | null
           verification_method?: string | null
           betting_enabled?: boolean
+          visibility?: string
+          stakes_type?: string
+          invite_code?: string | null
+          consensus_threshold?: number
+          dispute_window_hours?: number
+          cover_image_url?: string | null
           created_at?: string
         }
         Update: {
@@ -78,10 +92,17 @@ export interface Database {
           prize_pool?: number | null
           creator_id?: string | null
           max_participants?: number | null
+          min_participants?: number
           starts_at?: string | null
           ends_at?: string | null
           verification_method?: string | null
           betting_enabled?: boolean
+          visibility?: string
+          stakes_type?: string
+          invite_code?: string | null
+          consensus_threshold?: number
+          dispute_window_hours?: number
+          cover_image_url?: string | null
           created_at?: string
         }
       }
@@ -146,6 +167,15 @@ export interface Database {
           created_at?: string
         }
       }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
     }
   }
 }
