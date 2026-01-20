@@ -167,6 +167,29 @@ export type Database = {
           created_at?: string
         }
       }
+      participants: {
+        Row: {
+          id: string
+          smash_id: string
+          user_id: string
+          joined_at: string
+          status: string
+        }
+        Insert: {
+          id?: string
+          smash_id: string
+          user_id: string
+          joined_at?: string
+          status?: string
+        }
+        Update: {
+          id?: string
+          smash_id?: string
+          user_id?: string
+          joined_at?: string
+          status?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -190,3 +213,5 @@ export type NewUser = Database['public']['Tables']['users']['Insert']
 export type NewSmash = Database['public']['Tables']['smashes']['Insert']
 export type NewSubmission = Database['public']['Tables']['submissions']['Insert']
 export type NewBet = Database['public']['Tables']['bets']['Insert']
+export type Participant = Database['public']['Tables']['participants']['Row']
+export type NewParticipant = Database['public']['Tables']['participants']['Insert']

@@ -8,6 +8,73 @@ https://smash.xyz
 
 ---
 
+## What Was Completed (Session 6)
+
+### Join Smash Flow
+- Created `participants` table schema (run SQL below in Supabase)
+- Added participant types to `src/lib/database.types.ts`:
+  - `Participant` and `NewParticipant` types
+- Added query functions to `src/lib/queries.ts`:
+  - `getParticipantsForSmash()` - Fetch all participants for a smash
+  - `hasUserJoinedSmash()` - Check if user already joined
+  - `joinSmash()` - Join a smash (creates participant record + user if needed)
+  - `leaveSmash()` - Withdraw from a smash
+  - `getParticipantCount()` - Get count for a smash
+  - `SmashParticipant` interface for frontend
+- Updated smash detail page (`src/app/smash/[id]/page.tsx`):
+  - Integrated Privy auth to get current user's wallet address
+  - Join button now functional with loading state
+  - Shows "Joined" state for users who already joined
+  - Shows "Connect to Join" for unauthenticated users
+  - Shows "Copy Link" for smash creators
+  - Participants tab shows actual DB participants with status badges
+  - Current user is highlighted in participants list
+
+### Complete Create Smash Submission
+- Updated `src/components/create/StepReview.tsx`:
+  - Integrated Privy auth to get creator's wallet address
+  - Added all missing fields to smash creation:
+    - `creator_id` - wallet address of creator
+    - `visibility` - public or private
+    - `stakes_type` - monetary, prize, or bragging
+    - `min_participants` - minimum required participants
+    - `consensus_threshold` - percentage for verification
+    - `dispute_window_hours` - time window for disputes
+  - Cover image upload to Supabase Storage (`covers/` folder)
+  - Invite code generation for private smashes (8-char alphanumeric)
+  - Status set to 'open' instead of 'draft' so users can join immediately
+  - "Connect Wallet to Create" button when not authenticated
+  - Wallet connection notice on review step
+
+### Database Update Required
+Run this SQL in Supabase to create the participants table:
+
+```sql
+-- Create participants table
+CREATE TABLE IF NOT EXISTS participants (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  smash_id UUID NOT NULL REFERENCES smashes(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  status TEXT DEFAULT 'active',
+  UNIQUE(smash_id, user_id)
+);
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_participants_smash_id ON participants(smash_id);
+CREATE INDEX IF NOT EXISTS idx_participants_user_id ON participants(user_id);
+
+-- Enable RLS
+ALTER TABLE participants ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Anyone can view participants" ON participants FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can join" ON participants FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can leave their own participations" ON participants FOR DELETE USING (true);
+```
+
+---
+
 ## What Was Completed (Session 5)
 
 ### Proof Submission Feature
@@ -128,25 +195,26 @@ Updated `src/lib/database.types.ts` to match.
 
 ## Next Priorities
 
-### 1. Join Smash Flow
-- Connect "Join" button to actual participation
-- Create participants table or add to smashes
-- Handle entry fee payment flow
+### 1. Entry Fee Payment Flow
+- Integrate wallet payment for entry fees (USDC on Base)
+- Update prize pool when users join
+- Handle refunds for withdrawn participants
 
-### 2. Create Smash Submission
-- Wire up create form to actually submit to Supabase
-- Handle cover image upload
-- Generate invite codes for private smashes
-
-### 3. Verification & Voting
+### 2. Verification & Voting
 - Implement participant voting on proofs
+- Create `votes` table for tracking votes
 - Consensus threshold checking
 - Dispute window handling
 
-### 4. Betting System
+### 3. Betting System
 - Place bet functionality
 - Track betting pool
 - Calculate odds
+
+### 4. Smash Lifecycle Management
+- Auto-transition status (open -> active -> verification -> complete)
+- Scheduled tasks for status updates based on dates
+- Winner determination based on verified proofs
 
 ---
 
@@ -186,3 +254,12 @@ Continue working on smash.xyz at /Users/mpr/first/hello_foundry/.github/workflow
 
 Read SESSION_HANDOFF.md for context.
 ```
+
+---
+
+## Important: Session Management
+
+**At ~75% token usage:**
+1. Create and save a new SESSION_HANDOFF.md with all completed work
+2. Push current work to the repo with a descriptive commit message
+3. Continue working or hand off to next session

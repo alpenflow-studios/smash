@@ -2,41 +2,95 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { usePrivy } from '@privy-io/react-auth';
 import { useCreateSmash } from '@/store/use-create-smash';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import type { NewSmash } from '@/lib/database.types';
 
+// Generate a random invite code for private smashes
+function generateInviteCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+// Upload cover image to Supabase Storage
+async function uploadCoverImage(file: File, smashId: string): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `covers/${smashId}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('smash-proofs')
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: true,
+    });
+
+  if (uploadError) {
+    console.error('Error uploading cover image:', uploadError);
+    throw uploadError;
+  }
+
+  const { data: urlData } = supabase.storage
+    .from('smash-proofs')
+    .getPublicUrl(fileName);
+
+  return urlData.publicUrl;
+}
+
 export function StepReview() {
   const router = useRouter();
+  const { authenticated, login, user } = usePrivy();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const state = useCreateSmash();
   const { prevStep, reset } = state;
 
+  // Get creator wallet address from Privy
+  const creatorId = user?.wallet?.address || '';
+
   const handleCreate = async () => {
+    // Require wallet connection
+    if (!authenticated || !creatorId) {
+      login();
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Build the insert object
+      // Generate invite code for private smashes
+      const inviteCode = state.visibility === 'private' ? generateInviteCode() : null;
+
+      // Build the insert object with all fields
       const smashData: NewSmash = {
         title: state.title,
         description: state.description || null,
         category: state.category,
-        status: 'draft',
+        status: 'open', // Start as open so users can join
+        creator_id: creatorId,
         entry_fee: state.stakesType === 'monetary' ? state.entryFee : null,
-        prize_pool: state.stakesType === 'monetary' ? state.entryFee : null,
+        prize_pool: state.stakesType === 'monetary' ? state.entryFee : 0,
+        min_participants: state.minParticipants,
         max_participants: state.maxParticipants,
         starts_at: state.startsAt?.toISOString() || null,
         ends_at: state.endsAt?.toISOString() || null,
         verification_method: state.verificationMethod,
         betting_enabled: state.bettingEnabled && state.visibility === 'public',
+        visibility: state.visibility,
+        stakes_type: state.stakesType,
+        invite_code: inviteCode,
+        consensus_threshold: state.consensusThreshold,
+        dispute_window_hours: state.disputeWindowHours,
       };
 
       // Create the smash in Supabase
-      // Type assertion needed due to Supabase client type inference limitations
       const { data, error: supabaseError } = await supabase
         .from('smashes')
         .insert(smashData as unknown as never)
@@ -49,6 +103,21 @@ export function StepReview() {
 
       if (!data) {
         throw new Error('No data returned from insert');
+      }
+
+      // Upload cover image if provided
+      if (state.coverImage) {
+        try {
+          const coverUrl = await uploadCoverImage(state.coverImage, data.id);
+          // Update the smash with the cover image URL
+          await supabase
+            .from('smashes')
+            .update({ cover_image_url: coverUrl } as never)
+            .eq('id', data.id);
+        } catch (uploadErr) {
+          console.warn('Failed to upload cover image:', uploadErr);
+          // Don't fail the whole creation if cover upload fails
+        }
       }
 
       // Reset form and redirect
@@ -183,6 +252,13 @@ export function StepReview() {
         </div>
       )}
 
+      {/* Wallet Connection Notice */}
+      {!authenticated && (
+        <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg text-purple-400">
+          Connect your wallet to create this smash. Your wallet address will be recorded as the creator.
+        </div>
+      )}
+
       {/* Navigation */}
       <div className="flex gap-3 pt-4">
         <Button
@@ -201,25 +277,27 @@ export function StepReview() {
           {isSubmitting ? (
             <span className="flex items-center gap-2">
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle 
-                  className="opacity-25" 
-                  cx="12" 
-                  cy="12" 
-                  r="10" 
-                  stroke="currentColor" 
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
                   strokeWidth="4"
                   fill="none"
                 />
-                <path 
-                  className="opacity-75" 
-                  fill="currentColor" 
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                 />
               </svg>
               Creating...
             </span>
+          ) : !authenticated ? (
+            'Connect Wallet to Create'
           ) : (
-            '🚀 Create Smash'
+            'Create Smash'
           )}
         </Button>
       </div>

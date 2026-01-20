@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Smash as DbSmash, Submission, NewSubmission, User as DbUser } from './database.types';
+import type { Smash as DbSmash, Submission, NewSubmission, User as DbUser, Participant, NewParticipant } from './database.types';
 import type { Smash, SmashCategory, SmashStatus, VerificationMethod, SmashSubmission, User } from '@/types';
 
 // Transform database smash to frontend smash type
@@ -310,4 +310,125 @@ export async function getOrCreateUser(address: string, username?: string) {
   }
 
   return transformUser(data as DbUser);
+}
+
+// ============================================
+// Participant Functions
+// ============================================
+
+export interface SmashParticipant {
+  id: string;
+  smashId: string;
+  userId: string;
+  joinedAt: Date;
+  status: 'active' | 'withdrawn' | 'completed' | 'failed';
+}
+
+// Transform database participant to frontend type
+export function transformParticipant(dbParticipant: Participant): SmashParticipant {
+  return {
+    id: dbParticipant.id,
+    smashId: dbParticipant.smash_id,
+    userId: dbParticipant.user_id,
+    joinedAt: new Date(dbParticipant.joined_at),
+    status: dbParticipant.status as SmashParticipant['status'],
+  };
+}
+
+// Get participants for a smash
+export async function getParticipantsForSmash(smashId: string): Promise<SmashParticipant[]> {
+  const { data, error } = await supabase
+    .from('participants')
+    .select('*')
+    .eq('smash_id', smashId)
+    .order('joined_at', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching participants:', error);
+    throw error;
+  }
+
+  return (data || []).map(transformParticipant);
+}
+
+// Check if user has joined a smash
+export async function hasUserJoinedSmash(smashId: string, userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('participants')
+    .select('id')
+    .eq('smash_id', smashId)
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return false; // Not found
+    }
+    console.error('Error checking participation:', error);
+    throw error;
+  }
+
+  return !!data;
+}
+
+// Join a smash
+export async function joinSmash(smashId: string, userId: string): Promise<SmashParticipant> {
+  // Check if already joined
+  const alreadyJoined = await hasUserJoinedSmash(smashId, userId);
+  if (alreadyJoined) {
+    throw new Error('You have already joined this smash');
+  }
+
+  // Ensure user exists in users table
+  await getOrCreateUser(userId);
+
+  // Create participant record
+  const participantData: NewParticipant = {
+    smash_id: smashId,
+    user_id: userId,
+    status: 'active',
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('participants')
+    .insert(participantData)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error joining smash:', error);
+    throw error;
+  }
+
+  return transformParticipant(data as Participant);
+}
+
+// Leave/withdraw from a smash
+export async function leaveSmash(smashId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('participants')
+    .delete()
+    .eq('smash_id', smashId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error leaving smash:', error);
+    throw error;
+  }
+}
+
+// Get participant count for a smash
+export async function getParticipantCount(smashId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('participants')
+    .select('*', { count: 'exact', head: true })
+    .eq('smash_id', smashId);
+
+  if (error) {
+    console.error('Error counting participants:', error);
+    throw error;
+  }
+
+  return count || 0;
 }

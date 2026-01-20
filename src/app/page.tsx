@@ -57,7 +57,7 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 py-16">
         <div className="text-center mb-16">
           <h2 className="text-6xl font-bold mb-4">
-            smash anything
+            smash something
             <br />
             <span className="bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
               prove everything

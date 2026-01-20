@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { usePrivy } from '@privy-io/react-auth';
 import {
   ArrowLeft,
   DollarSign,
@@ -12,13 +13,21 @@ import {
   Check,
   X,
   Loader2,
+  LogIn,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { getSmashById, getSubmissionsForSmash } from '@/lib/queries';
+import {
+  getSmashById,
+  getSubmissionsForSmash,
+  getParticipantsForSmash,
+  joinSmash,
+  hasUserJoinedSmash,
+  SmashParticipant,
+} from '@/lib/queries';
 import { mockSmashes } from '@/lib/mock-data';
 import { Smash, SmashStatus, SmashSubmission } from '@/types';
 import { ProofUploadDialog, ProofGallery } from '@/components/proof';
@@ -79,14 +88,20 @@ const shortenAddress = (address: string) => {
 
 export default function SmashDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { authenticated, login, user } = usePrivy();
+
   const [smash, setSmash] = useState<Smash | null>(null);
   const [submissions, setSubmissions] = useState<SmashSubmission[]>([]);
+  const [participants, setParticipants] = useState<SmashParticipant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [proofDialogOpen, setProofDialogOpen] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
-  // TODO: Get actual user ID from Privy auth
-  const currentUserId = '0x1234567890abcdef1234567890abcdef12345678';
+  // Get current user's wallet address from Privy
+  const currentUserId = user?.wallet?.address || '';
 
   const fetchSubmissions = useCallback(async () => {
     try {
@@ -96,6 +111,25 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
       console.error('Failed to fetch submissions:', err);
     }
   }, [id]);
+
+  const fetchParticipants = useCallback(async () => {
+    try {
+      const data = await getParticipantsForSmash(id);
+      setParticipants(data);
+    } catch (err) {
+      console.error('Failed to fetch participants:', err);
+    }
+  }, [id]);
+
+  const checkIfJoined = useCallback(async () => {
+    if (!currentUserId) return;
+    try {
+      const joined = await hasUserJoinedSmash(id, currentUserId);
+      setHasJoined(joined);
+    } catch (err) {
+      console.error('Failed to check participation:', err);
+    }
+  }, [id, currentUserId]);
 
   useEffect(() => {
     async function fetchSmash() {
@@ -133,7 +167,42 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
 
     fetchSmash();
     fetchSubmissions();
-  }, [id, fetchSubmissions]);
+    fetchParticipants();
+  }, [id, fetchSubmissions, fetchParticipants]);
+
+  // Check if user has joined when they connect wallet
+  useEffect(() => {
+    if (currentUserId) {
+      checkIfJoined();
+    }
+  }, [currentUserId, checkIfJoined]);
+
+  const handleJoin = async () => {
+    if (!authenticated) {
+      login();
+      return;
+    }
+
+    if (!currentUserId) {
+      setJoinError('Please connect your wallet first');
+      return;
+    }
+
+    setIsJoining(true);
+    setJoinError(null);
+
+    try {
+      await joinSmash(id, currentUserId);
+      setHasJoined(true);
+      // Refresh participants list
+      await fetchParticipants();
+    } catch (err) {
+      console.error('Failed to join smash:', err);
+      setJoinError(err instanceof Error ? err.message : 'Failed to join smash');
+    } finally {
+      setIsJoining(false);
+    }
+  };
 
   // Loading state
   if (loading) {
@@ -185,8 +254,12 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const spotsLeft = smash.maxParticipants - smash.participants.length;
-  const percentFilled = (smash.participants.length / smash.maxParticipants) * 100;
+  // Use actual participants from DB, not from smash object
+  const participantCount = participants.length;
+  const spotsLeft = smash.maxParticipants - participantCount;
+  const percentFilled = (participantCount / smash.maxParticipants) * 100;
+  const isCreator = currentUserId && smash.creatorId && currentUserId.toLowerCase() === smash.creatorId.toLowerCase();
+  const canJoin = smash.status === 'open' || smash.status === 'active';
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -252,7 +325,7 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
               <span className="text-sm">Participants</span>
             </div>
             <div className="text-2xl font-bold">
-              {smash.participants.length}/{smash.maxParticipants}
+              {participantCount}/{smash.maxParticipants}
             </div>
           </Card>
 
@@ -269,19 +342,65 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
         <Card className="border-gray-800 bg-black/50 p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold mb-1">Join this Smash</h3>
+              <h3 className="text-lg font-semibold mb-1">
+                {hasJoined ? "You're In!" : isCreator ? 'Your Smash' : 'Join this Smash'}
+              </h3>
               <p className="text-gray-400">
-                {spotsLeft > 0 ? `${spotsLeft} spots remaining` : 'This smash is full'}
+                {hasJoined
+                  ? 'You have joined this challenge. Submit your proof to complete it!'
+                  : isCreator
+                  ? 'You created this smash. Share it to get participants!'
+                  : spotsLeft > 0
+                  ? `${spotsLeft} spots remaining`
+                  : 'This smash is full'}
               </p>
             </div>
             <div className="flex gap-3">
-              <Button
-                className="bg-purple-600 hover:bg-purple-700 px-8"
-                disabled={spotsLeft === 0 || smash.status !== 'active'}
-              >
-                <Trophy size={16} />
-                Join for ${smash.entryFee}
-              </Button>
+              {hasJoined ? (
+                <Button
+                  className="bg-green-600 hover:bg-green-700 px-8 cursor-default"
+                  disabled
+                >
+                  <Check size={16} />
+                  Joined
+                </Button>
+              ) : isCreator ? (
+                <Button
+                  variant="outline"
+                  className="border-purple-500 text-purple-500 px-8"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                  }}
+                >
+                  Copy Link
+                </Button>
+              ) : !authenticated ? (
+                <Button
+                  className="bg-purple-600 hover:bg-purple-700 px-8"
+                  onClick={login}
+                >
+                  <LogIn size={16} />
+                  Connect to Join
+                </Button>
+              ) : (
+                <Button
+                  className="bg-purple-600 hover:bg-purple-700 px-8"
+                  disabled={spotsLeft === 0 || !canJoin || isJoining}
+                  onClick={handleJoin}
+                >
+                  {isJoining ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Joining...
+                    </>
+                  ) : (
+                    <>
+                      <Trophy size={16} />
+                      Join for ${smash.entryFee}
+                    </>
+                  )}
+                </Button>
+              )}
               {smash.bettingEnabled && (
                 <Button variant="outline" className="border-gray-700 hover:border-purple-500 px-8">
                   Place Bet
@@ -289,6 +408,13 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
               )}
             </div>
           </div>
+
+          {/* Join Error */}
+          {joinError && (
+            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+              {joinError}
+            </div>
+          )}
 
           {/* Progress Bar */}
           <div className="mt-4">
@@ -308,7 +434,7 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
               Details
             </TabsTrigger>
             <TabsTrigger value="participants" className="data-[state=active]:bg-gray-800">
-              Participants ({smash.participants.length})
+              Participants ({participantCount})
             </TabsTrigger>
             <TabsTrigger value="proofs" className="data-[state=active]:bg-gray-800">
               Proofs
@@ -397,7 +523,7 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Participants</h3>
                 <span className="text-sm text-gray-400">
-                  {smash.participants.length} of {smash.maxParticipants}
+                  {participantCount} of {smash.maxParticipants}
                 </span>
               </div>
 
@@ -423,29 +549,55 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
                   </Link>
                 )}
 
-                {/* Other Participants */}
-                {smash.participants.length > 0 ? (
+                {/* Participants from database */}
+                {participants.length > 0 ? (
                   <>
-                    {smash.participants.slice(0, 10).map((participant, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback className="bg-gray-700">
-                              {String(i + 1).padStart(2, '0')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="font-medium">{shortenAddress(participant + i)}</div>
-                        </div>
-                        <span className="text-sm text-gray-400">Joined</span>
-                      </div>
-                    ))}
+                    {participants.slice(0, 10).map((participant, i) => {
+                      const isCurrentUser = currentUserId && participant.userId.toLowerCase() === currentUserId.toLowerCase();
+                      return (
+                        <Link
+                          key={participant.id}
+                          href={`/profile/${participant.userId}`}
+                          className={`flex items-center justify-between p-3 rounded-lg transition ${
+                            isCurrentUser
+                              ? 'bg-green-900/20 border border-green-500/30 hover:border-green-500/50'
+                              : 'bg-gray-900/50 hover:bg-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarFallback className={isCurrentUser ? 'bg-green-600' : 'bg-gray-700'}>
+                                {participant.userId.slice(2, 4).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">
+                                {shortenAddress(participant.userId)}
+                                {isCurrentUser && <span className="ml-2 text-green-400 text-xs">(You)</span>}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Joined {new Date(participant.joinedAt).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                          <Badge
+                            className={
+                              participant.status === 'completed'
+                                ? 'bg-green-500/10 text-green-500'
+                                : participant.status === 'failed'
+                                ? 'bg-red-500/10 text-red-500'
+                                : 'bg-gray-500/10 text-gray-400'
+                            }
+                          >
+                            {participant.status}
+                          </Badge>
+                        </Link>
+                      );
+                    })}
 
-                    {smash.participants.length > 10 && (
+                    {participants.length > 10 && (
                       <div className="text-center text-gray-400 py-3">
-                        + {smash.participants.length - 10} more participants
+                        + {participants.length - 10} more participants
                       </div>
                     )}
                   </>
