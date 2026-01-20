@@ -185,6 +185,75 @@ ALTER TABLE smashes ADD COLUMN dispute_window_hours int DEFAULT 24;
 5. **Wire up Supabase** to save/load smashes
 6. **Later: Smart contracts** for escrow and betting
 
+# ADD THIS SECTION TO SMASH_SPEC.md
+
+---
+
+## Platform Challenges (Smash.xyz Official)
+
+In addition to user-created smashes, Smash.xyz offers official recurring challenges:
+
+### Challenge Cadence
+
+| Type | Duration | Example |
+|------|----------|---------|
+| **Daily** | 24 hours | "Run 1 mile today" |
+| **Weekly** | 7 days | "Log 5 workouts this week" |
+| **Monthly** | 30 days | "Read 4 books this month" |
+| **Yearly** | 365 days | "Complete a marathon this year" |
+
+### Platform Challenge Features
+
+- **Curated by Smash.xyz** - Official challenges created by the platform
+- **Recurring** - Auto-restart at each cadence (new daily challenge every day)
+- **Leaderboards** - Track top performers per challenge
+- **Badges/Achievements** - Earn recognition for completing streaks
+- **Sponsored Prizes** - Partners can sponsor prize pools
+- **Categories** - Fitness, Learning, Creative, Social, Wellness, etc.
+
+### Database Addition
+
+```sql
+-- Add to smashes table
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS is_platform_challenge boolean DEFAULT false;
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS challenge_cadence text; -- daily, weekly, monthly, yearly
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS challenge_series_id uuid; -- groups recurring challenges
+ALTER TABLE smashes ADD COLUMN IF NOT EXISTS sponsor text; -- sponsor name if sponsored
+```
+
+### Platform vs User Smashes
+
+| Feature | User Smash | Platform Challenge |
+|---------|------------|-------------------|
+| Created by | Any user | Smash.xyz admin |
+| Recurring | No (one-time) | Yes (auto-restarts) |
+| Visibility | Public or Private | Always Public |
+| Prediction Market | Optional | Yes (always enabled) |
+| Leaderboard | No | Yes |
+| Badges | No | Yes |
+
+### Example Platform Challenges
+
+**Daily:**
+- "Walk 10,000 steps"
+- "Drink 8 glasses of water"
+- "No social media for 24 hours"
+
+**Weekly:**
+- "Run 20 miles total"
+- "Cook 5 homemade meals"
+- "Read for 7 hours"
+
+**Monthly:**
+- "Lose 5 pounds"
+- "Ship a side project"
+- "Learn 100 new words in a language"
+
+**Yearly:**
+- "Complete Couch to 5K to Marathon"
+- "Read 52 books"
+- "Save $10,000"
+
 ---
 
 ## Session 3 Handoff

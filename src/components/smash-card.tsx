@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Smash } from '@/types';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,10 +42,12 @@ export function SmashCard({ smash, onJoin, onBet }: SmashCardProps) {
           {smash.category}
         </Badge>
       </div>
-      
-      <h3 className="text-xl font-bold mb-2 line-clamp-2">
-        {smash.title}
-      </h3>
+
+      <Link href={`/smash/${smash.id}`}>
+        <h3 className="text-xl font-bold mb-2 line-clamp-2 hover:text-purple-400 transition cursor-pointer">
+          {smash.title}
+        </h3>
+      </Link>
       
       <div className="space-y-2 text-sm text-gray-400 mb-4">
         <div className="flex items-center gap-2">
