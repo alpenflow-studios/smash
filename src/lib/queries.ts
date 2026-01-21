@@ -12,6 +12,7 @@ export function transformSmash(dbSmash: DbSmash): Smash {
     status: (dbSmash.status as SmashStatus) || 'draft',
     entryFee: dbSmash.entry_fee || 0,
     prizePool: dbSmash.prize_pool || 0,
+    stakesType: (dbSmash.stakes_type as 'monetary' | 'prize' | 'bragging') || 'monetary',
     creatorId: dbSmash.creator_id || '',
     participants: [], // Will be populated separately if needed
     maxParticipants: dbSmash.max_participants || 100,
@@ -387,6 +388,80 @@ export async function joinSmash(smashId: string, userId: string): Promise<SmashP
     smash_id: smashId,
     user_id: userId,
     status: 'active',
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('participants')
+    .insert(participantData)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error joining smash:', error);
+    throw error;
+  }
+
+  return transformParticipant(data as Participant);
+}
+
+// Join a smash with payment (records tx hash)
+export async function joinSmashWithPayment(
+  smashId: string,
+  userId: string,
+  txHash: string,
+  tokenSymbol: 'ETH' | 'USDC'
+): Promise<SmashParticipant> {
+  // Check if already joined
+  const alreadyJoined = await hasUserJoinedSmash(smashId, userId);
+  if (alreadyJoined) {
+    throw new Error('You have already joined this smash');
+  }
+
+  // Ensure user exists
+  await getOrCreateUser(userId);
+
+  // Get token ID from payment_tokens table
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: tokenData, error: tokenError } = await (supabase as any)
+    .from('payment_tokens')
+    .select('id')
+    .eq('symbol', tokenSymbol)
+    .single();
+
+  if (tokenError || !tokenData) {
+    console.error('Error finding token:', tokenError);
+    throw new Error(`Token ${tokenSymbol} not found`);
+  }
+
+  // Create payment transaction record
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: txData, error: txError } = await (supabase as any)
+    .from('payment_transactions')
+    .insert({
+      smash_id: smashId,
+      user_id: userId,
+      token_id: tokenData.id,
+      amount: '0', // TODO: pass actual amount
+      tx_hash: txHash,
+      tx_type: 'entry',
+      status: 'confirmed',
+    })
+    .select()
+    .single();
+
+  if (txError) {
+    console.error('Error recording payment:', txError);
+    throw txError;
+  }
+
+  // Create participant record with payment reference
+  const participantData = {
+    smash_id: smashId,
+    user_id: userId,
+    status: 'active',
+    payment_tx_id: txData.id,
+    paid_token_id: tokenData.id,
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

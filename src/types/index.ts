@@ -14,11 +14,12 @@ export interface Smash {
   description: string;
   category: SmashCategory;
   status: SmashStatus;
-  
+
   // Stakes
   entryFee: number; // in USDC
   prizePool: number;
-  
+  stakesType: StakesType;
+
   // Participants
   creatorId: string;
   participants: string[]; // wallet addresses

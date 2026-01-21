@@ -4,39 +4,46 @@ import type { SmashCategory, Visibility, StakesType, VerificationMethod } from '
 // Re-export types for components that import from this file
 export type { SmashCategory, Visibility, StakesType, VerificationMethod };
 
+export type PaymentToken = 'ETH' | 'USDC';
+
 export interface CreateSmashState {
   // Current step
   currentStep: number;
-  
+
   // Step 1: Basics
   title: string;
   description: string;
   category: SmashCategory;
   coverImage: File | null;
   coverImagePreview: string | null;
-  
+
   // Step 2: Visibility & Stakes
   visibility: Visibility;
   stakesType: StakesType;
   entryFee: number;
   prizeDescription: string;
-  
-  // Step 3: Participants
+
+  // Step 3: Payment Tokens (NEW)
+  acceptedTokens: PaymentToken[];
+  entryFeeETH: string;
+  entryFeeUSDC: string;
+
+  // Step 4: Participants
   minParticipants: number;
   maxParticipants: number | null;
   inviteList: string[];
   
-  // Step 4: Timeline
+  // Step 5: Timeline
   startsAt: Date | null;
   endsAt: Date | null;
   verificationWindowHours: number;
-  
-  // Step 5: Verification
+
+  // Step 6: Verification
   verificationMethod: VerificationMethod;
   consensusThreshold: number;
   disputeWindowHours: number;
-  
-  // Step 6: Prediction Market
+
+  // Step 7: Prediction Market
   bettingEnabled: boolean;
   
   // Actions
@@ -54,7 +61,12 @@ export interface CreateSmashState {
   setStakesType: (type: StakesType) => void;
   setEntryFee: (fee: number) => void;
   setPrizeDescription: (desc: string) => void;
-  
+
+  setAcceptedTokens: (tokens: PaymentToken[]) => void;
+  toggleAcceptedToken: (token: PaymentToken) => void;
+  setEntryFeeETH: (fee: string) => void;
+  setEntryFeeUSDC: (fee: string) => void;
+
   setMinParticipants: (min: number) => void;
   setMaxParticipants: (max: number | null) => void;
   addToInviteList: (address: string) => void;
@@ -84,6 +96,9 @@ const initialState = {
   stakesType: 'monetary' as StakesType,
   entryFee: 10,
   prizeDescription: '',
+  acceptedTokens: ['ETH'] as PaymentToken[],
+  entryFeeETH: '0.01',
+  entryFeeUSDC: '10',
   minParticipants: 2,
   maxParticipants: null,
   inviteList: [],
@@ -100,7 +115,7 @@ export const useCreateSmash = create<CreateSmashState>((set) => ({
   ...initialState,
   
   setStep: (step) => set({ currentStep: step }),
-  nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 7) })),
+  nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 8) })),
   prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })),
   
   setTitle: (title) => set({ title }),
@@ -112,7 +127,17 @@ export const useCreateSmash = create<CreateSmashState>((set) => ({
   setStakesType: (type) => set({ stakesType: type }),
   setEntryFee: (fee) => set({ entryFee: fee }),
   setPrizeDescription: (desc) => set({ prizeDescription: desc }),
-  
+
+  setAcceptedTokens: (tokens) => set({ acceptedTokens: tokens }),
+  toggleAcceptedToken: (token) =>
+    set((state) => ({
+      acceptedTokens: state.acceptedTokens.includes(token)
+        ? state.acceptedTokens.filter((t) => t !== token)
+        : [...state.acceptedTokens, token],
+    })),
+  setEntryFeeETH: (fee) => set({ entryFeeETH: fee }),
+  setEntryFeeUSDC: (fee) => set({ entryFeeUSDC: fee }),
+
   setMinParticipants: (min) => set({ minParticipants: min }),
   setMaxParticipants: (max) => set({ maxParticipants: max }),
   addToInviteList: (address) => set((state) => ({ 

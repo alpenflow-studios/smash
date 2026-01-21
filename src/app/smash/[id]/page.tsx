@@ -14,7 +14,11 @@ import {
   X,
   Loader2,
   LogIn,
+  Wallet,
 } from 'lucide-react';
+import { PaymentButton } from '@/components/payment/PaymentButton';
+import { RefundButton } from '@/components/payment/RefundButton';
+import type { TokenOption } from '@/components/payment/TokenSelector';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -24,7 +28,7 @@ import {
   getSmashById,
   getSubmissionsForSmash,
   getParticipantsForSmash,
-  joinSmash,
+  joinSmashWithPayment,
   hasUserJoinedSmash,
   SmashParticipant,
 } from '@/lib/queries';
@@ -96,9 +100,8 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [proofDialogOpen, setProofDialogOpen] = useState(false);
-  const [isJoining, setIsJoining] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
-  const [joinError, setJoinError] = useState<string | null>(null);
+  const [showPayment, setShowPayment] = useState(false);
 
   // Get current user's wallet address from Privy
   const currentUserId = user?.wallet?.address || '';
@@ -177,32 +180,29 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
     }
   }, [currentUserId, checkIfJoined]);
 
-  const handleJoin = async () => {
-    if (!authenticated) {
-      login();
-      return;
-    }
-
-    if (!currentUserId) {
-      setJoinError('Please connect your wallet first');
-      return;
-    }
-
-    setIsJoining(true);
-    setJoinError(null);
-
+  const handlePaymentSuccess = async (txHash: string, token: TokenOption) => {
     try {
-      await joinSmash(id, currentUserId);
+      // Record the payment in the database
+      await joinSmashWithPayment(id, currentUserId, txHash, token);
       setHasJoined(true);
+      setShowPayment(false);
       // Refresh participants list
       await fetchParticipants();
     } catch (err) {
-      console.error('Failed to join smash:', err);
-      setJoinError(err instanceof Error ? err.message : 'Failed to join smash');
-    } finally {
-      setIsJoining(false);
+      console.error('Failed to record payment:', err);
     }
   };
+
+  const handleRefundSuccess = async (txHash: string) => {
+    setHasJoined(false);
+    await fetchParticipants();
+  };
+
+  // TODO: These should come from DB - smash_accepted_tokens table
+  // For now, hardcode based on stakes type
+  const acceptedTokens: TokenOption[] = smash?.stakesType === 'monetary' ? ['ETH', 'USDC'] : [];
+  const entryFeeETH = '0.01'; // TODO: from DB
+  const entryFeeUSDC = smash?.entryFee?.toString() || '10'; // TODO: from DB
 
   // Loading state
   if (loading) {
@@ -357,13 +357,23 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
             </div>
             <div className="flex gap-3">
               {hasJoined ? (
-                <Button
-                  className="bg-green-600 hover:bg-green-700 px-8 cursor-default"
-                  disabled
-                >
-                  <Check size={16} />
-                  Joined
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    className="bg-green-600 hover:bg-green-700 px-8 cursor-default"
+                    disabled
+                  >
+                    <Check size={16} />
+                    Joined
+                  </Button>
+                  {/* Show refund button if smash hasn't started */}
+                  {smash.startsAt && new Date() < new Date(smash.startsAt) && (
+                    <RefundButton
+                      smashId={id}
+                      startsAt={new Date(smash.startsAt)}
+                      onSuccess={handleRefundSuccess}
+                    />
+                  )}
+                </div>
               ) : isCreator ? (
                 <Button
                   variant="outline"
@@ -382,39 +392,35 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
                   <LogIn size={16} />
                   Connect to Join
                 </Button>
+              ) : showPayment ? (
+                <div className="w-64">
+                  <PaymentButton
+                    smashId={id}
+                    entryFeeETH={entryFeeETH}
+                    entryFeeUSDC={entryFeeUSDC}
+                    acceptedTokens={acceptedTokens}
+                    onSuccess={handlePaymentSuccess}
+                    onCancel={() => setShowPayment(false)}
+                    disabled={spotsLeft === 0 || !canJoin}
+                  />
+                </div>
               ) : (
                 <Button
                   className="bg-purple-600 hover:bg-purple-700 px-8"
-                  disabled={spotsLeft === 0 || !canJoin || isJoining}
-                  onClick={handleJoin}
+                  disabled={spotsLeft === 0 || !canJoin}
+                  onClick={() => setShowPayment(true)}
                 >
-                  {isJoining ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      Joining...
-                    </>
-                  ) : (
-                    <>
-                      <Trophy size={16} />
-                      Join for ${smash.entryFee}
-                    </>
-                  )}
+                  <Wallet size={16} />
+                  Join for {smash.entryFee} {smash.stakesType === 'monetary' ? 'USDC' : ''}
                 </Button>
               )}
-              {smash.bettingEnabled && (
+              {smash.bettingEnabled && !showPayment && (
                 <Button variant="outline" className="border-gray-700 hover:border-purple-500 px-8">
                   Place Bet
                 </Button>
               )}
             </div>
           </div>
-
-          {/* Join Error */}
-          {joinError && (
-            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-              {joinError}
-            </div>
-          )}
 
           {/* Progress Bar */}
           <div className="mt-4">

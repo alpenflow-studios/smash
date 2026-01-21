@@ -3,6 +3,7 @@
 import { useCreateSmash } from '@/store/use-create-smash';
 import { StepBasics } from './StepBasics';
 import { StepVisibility } from './StepVisibility';
+import { StepTokens } from './StepTokens';
 import { StepParticipants } from './StepParticipants';
 import { StepTimeline } from './StepTimeline';
 import { StepVerification } from './StepVerification';
@@ -12,11 +13,12 @@ import { StepReview } from './StepReview';
 const steps = [
   { id: 1, label: 'Basics' },
   { id: 2, label: 'Visibility' },
-  { id: 3, label: 'Participants' },
-  { id: 4, label: 'Timeline' },
-  { id: 5, label: 'Verification' },
-  { id: 6, label: 'Betting' },
-  { id: 7, label: 'Review' },
+  { id: 3, label: 'Tokens' },
+  { id: 4, label: 'Participants' },
+  { id: 5, label: 'Timeline' },
+  { id: 6, label: 'Verification' },
+  { id: 7, label: 'Betting' },
+  { id: 8, label: 'Review' },
 ];
 
 export function CreateSmashForm() {
@@ -29,14 +31,16 @@ export function CreateSmashForm() {
       case 2:
         return <StepVisibility />;
       case 3:
-        return <StepParticipants />;
+        return <StepTokens />;
       case 4:
-        return <StepTimeline />;
+        return <StepParticipants />;
       case 5:
-        return <StepVerification />;
+        return <StepTimeline />;
       case 6:
-        return <StepPrediction />;
+        return <StepVerification />;
       case 7:
+        return <StepPrediction />;
+      case 8:
         return <StepReview />;
       default:
         return <StepBasics />;

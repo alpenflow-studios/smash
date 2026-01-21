@@ -174,6 +174,10 @@ export type Database = {
           user_id: string
           joined_at: string
           status: string
+          payment_tx_id: string | null
+          refund_tx_id: string | null
+          paid_amount: string | null
+          paid_token_id: string | null
         }
         Insert: {
           id?: string
@@ -181,6 +185,10 @@ export type Database = {
           user_id: string
           joined_at?: string
           status?: string
+          payment_tx_id?: string | null
+          refund_tx_id?: string | null
+          paid_amount?: string | null
+          paid_token_id?: string | null
         }
         Update: {
           id?: string
@@ -188,6 +196,103 @@ export type Database = {
           user_id?: string
           joined_at?: string
           status?: string
+          payment_tx_id?: string | null
+          refund_tx_id?: string | null
+          paid_amount?: string | null
+          paid_token_id?: string | null
+        }
+      }
+      payment_tokens: {
+        Row: {
+          id: string
+          symbol: string
+          name: string
+          contract_address: string | null
+          decimals: number
+          chain_id: number
+          logo_url: string | null
+          is_active: boolean
+        }
+        Insert: {
+          id?: string
+          symbol: string
+          name: string
+          contract_address?: string | null
+          decimals?: number
+          chain_id?: number
+          logo_url?: string | null
+          is_active?: boolean
+        }
+        Update: {
+          id?: string
+          symbol?: string
+          name?: string
+          contract_address?: string | null
+          decimals?: number
+          chain_id?: number
+          logo_url?: string | null
+          is_active?: boolean
+        }
+      }
+      smash_accepted_tokens: {
+        Row: {
+          id: string
+          smash_id: string
+          token_id: string
+        }
+        Insert: {
+          id?: string
+          smash_id: string
+          token_id: string
+        }
+        Update: {
+          id?: string
+          smash_id?: string
+          token_id?: string
+        }
+      }
+      payment_transactions: {
+        Row: {
+          id: string
+          smash_id: string
+          user_id: string
+          token_id: string
+          amount: string
+          amount_usd: number | null
+          tx_hash: string
+          tx_type: string
+          status: string
+          block_number: number | null
+          created_at: string
+          confirmed_at: string | null
+        }
+        Insert: {
+          id?: string
+          smash_id: string
+          user_id: string
+          token_id: string
+          amount: string
+          amount_usd?: number | null
+          tx_hash: string
+          tx_type: string
+          status?: string
+          block_number?: number | null
+          created_at?: string
+          confirmed_at?: string | null
+        }
+        Update: {
+          id?: string
+          smash_id?: string
+          user_id?: string
+          token_id?: string
+          amount?: string
+          amount_usd?: number | null
+          tx_hash?: string
+          tx_type?: string
+          status?: string
+          block_number?: number | null
+          created_at?: string
+          confirmed_at?: string | null
         }
       }
     }
@@ -215,3 +320,7 @@ export type NewSubmission = Database['public']['Tables']['submissions']['Insert'
 export type NewBet = Database['public']['Tables']['bets']['Insert']
 export type Participant = Database['public']['Tables']['participants']['Row']
 export type NewParticipant = Database['public']['Tables']['participants']['Insert']
+export type PaymentToken = Database['public']['Tables']['payment_tokens']['Row']
+export type SmashAcceptedToken = Database['public']['Tables']['smash_accepted_tokens']['Row']
+export type PaymentTransaction = Database['public']['Tables']['payment_transactions']['Row']
+export type NewPaymentTransaction = Database['public']['Tables']['payment_transactions']['Insert']
