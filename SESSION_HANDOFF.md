@@ -8,6 +8,20 @@ https://smash.xyz
 
 ---
 
+## Current Status (Session 8)
+
+### Issue to Debug
+**Smash creation is failing** - both with prediction market enabled and disabled. The error needs to be investigated in the browser console when attempting to create a smash.
+
+Check `src/components/create/StepReview.tsx` line 127 for the error logging: `console.error('Failed to create smash:', err);`
+
+Likely causes:
+- Database schema mismatch (columns may not exist in Supabase)
+- Missing SQL migrations for payment tables
+- RLS policy blocking inserts
+
+---
+
 ## What Was Completed (Session 7)
 
 ### Entry Fee Payment Flow
@@ -64,7 +78,12 @@ https://smash.xyz
   - Records payment transaction in DB
   - Links participant to payment record
 
-### Database Updates Required
+---
+
+## Database Migrations REQUIRED
+
+**These SQL migrations may not have been run yet - this could be causing the creation failure.**
+
 Run this SQL in Supabase:
 
 ```sql
@@ -140,7 +159,9 @@ CREATE POLICY "Anyone can insert payment transactions" ON payment_transactions F
 CREATE POLICY "Anyone can update payment transactions" ON payment_transactions FOR UPDATE USING (true);
 ```
 
-### Environment Variables Needed
+---
+
+## Environment Variables Needed
 Add to `.env.local`:
 ```
 NEXT_PUBLIC_CHAIN_ID=84532
@@ -150,34 +171,31 @@ NEXT_PUBLIC_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
 
 ---
 
-## Next Steps to Complete Payment Flow
+## Next Steps
 
-### 1. Deploy SmashVault Contract
+### 1. Debug Smash Creation Failure
+- Open browser console (F12 → Console)
+- Attempt to create a smash
+- Check error message at `StepReview.tsx:127`
+- Likely need to run SQL migrations above
+
+### 2. Deploy SmashVault Contract
 - Deploy `contracts/SmashVault.sol` to Base Sepolia
 - Set USDC address: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 - Set admin address (your backend wallet)
 - Add contract address to env vars
 
-### 2. Create Smash On-Chain Registration
-- When creating a smash, call `SmashVault.createSmash()`
-- Store `vault_smash_id` in database
-- Link accepted tokens to smash
-
-### 3. Test Full Flow
+### 3. Test Full Payment Flow
 1. Get Base Sepolia ETH from faucet
 2. Create a smash with ETH entry fee
 3. Join with payment
 4. Verify on-chain and in DB
 
-### 4. Future: Payout System
-- Build admin endpoint to trigger payouts
-- Call `SmashVault.distributePayout()` when smash completes
-
 ---
 
-## Key Files Created/Modified
+## Key Files
 
-### New Files
+### New Files (Session 7)
 | File | Purpose |
 |------|---------|
 | `contracts/SmashVault.sol` | Escrow contract for payments |
@@ -190,7 +208,7 @@ NEXT_PUBLIC_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
 | `src/components/payment/*.tsx` | Payment UI components |
 | `src/components/create/StepTokens.tsx` | Token selection step |
 
-### Modified Files
+### Modified Files (Session 7)
 | File | Changes |
 |------|---------|
 | `src/app/providers.tsx` | Polygon → Base Sepolia |
@@ -200,7 +218,6 @@ NEXT_PUBLIC_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
 | `src/lib/queries.ts` | Added `joinSmashWithPayment()` |
 | `src/lib/database.types.ts` | Added payment table types |
 | `src/types/index.ts` | Added `stakesType` to Smash |
-| `src/lib/mock-data.ts` | Added `stakesType` |
 
 ---
 
@@ -223,7 +240,6 @@ NEXT_PUBLIC_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
 ### Session 3
 - Multi-step create smash form (7 steps)
 - Zustand store for form state
-- Type fixes and configuration
 
 ---
 
@@ -233,13 +249,6 @@ NEXT_PUBLIC_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
 Continue working on smash.xyz at /Users/mpr/first/hello_foundry/.github/workflows/smash
 
 Read SESSION_HANDOFF.md for context.
+
+Current issue: Smash creation is failing. Debug by checking browser console for error message.
 ```
-
----
-
-## Important: Session Management
-
-**At ~75% token usage:**
-1. Create and save a new SESSION_HANDOFF.md with all completed work
-2. Push current work to the repo with a descriptive commit message
-3. Continue working or hand off to next session
