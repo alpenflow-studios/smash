@@ -410,7 +410,8 @@ export async function joinSmashWithPayment(
   smashId: string,
   userId: string,
   txHash: string,
-  tokenSymbol: 'ETH' | 'USDC'
+  tokenSymbol: 'ETH' | 'USDC',
+  amount: string
 ): Promise<SmashParticipant> {
   // Check if already joined
   const alreadyJoined = await hasUserJoinedSmash(smashId, userId);
@@ -442,7 +443,7 @@ export async function joinSmashWithPayment(
       smash_id: smashId,
       user_id: userId,
       token_id: tokenData.id,
-      amount: '0', // TODO: pass actual amount
+      amount,
       tx_hash: txHash,
       tx_type: 'entry',
       status: 'confirmed',
@@ -506,4 +507,63 @@ export async function getParticipantCount(smashId: string): Promise<number> {
   }
 
   return count || 0;
+}
+
+// ============================================
+// Payment Token Functions
+// ============================================
+
+export interface AcceptedToken {
+  symbol: 'ETH' | 'USDC';
+  name: string;
+  decimals: number;
+  contractAddress: string | null;
+}
+
+// Get accepted payment tokens for a smash
+export async function getAcceptedTokensForSmash(smashId: string): Promise<AcceptedToken[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('smash_accepted_tokens')
+    .select(`
+      token_id,
+      payment_tokens (
+        symbol,
+        name,
+        decimals,
+        contract_address
+      )
+    `)
+    .eq('smash_id', smashId);
+
+  if (error) {
+    console.error('Error fetching accepted tokens:', error);
+    throw error;
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  type TokenRow = {
+    token_id: string;
+    payment_tokens: {
+      symbol: string;
+      name: string;
+      decimals: number;
+      contract_address: string | null;
+    } | null;
+  };
+
+  return (data as TokenRow[])
+    .filter((row) => row.payment_tokens)
+    .map((row) => {
+      const token = row.payment_tokens!;
+      return {
+        symbol: token.symbol as 'ETH' | 'USDC',
+        name: token.name,
+        decimals: token.decimals,
+        contractAddress: token.contract_address,
+      };
+    });
 }

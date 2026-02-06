@@ -65,6 +65,11 @@ export function ProofUploadDialog({
 
     setFile(selectedFile);
 
+    // Revoke previous preview URL to prevent memory leak
+    if (preview) {
+      URL.revokeObjectURL(preview);
+    }
+
     // Create preview for images and videos
     if (selectedFile.type.startsWith('image/') || selectedFile.type.startsWith('video/')) {
       const url = URL.createObjectURL(selectedFile);
@@ -96,6 +101,10 @@ export function ProofUploadDialog({
   };
 
   const handleClose = () => {
+    // Revoke preview URL to prevent memory leak
+    if (preview) {
+      URL.revokeObjectURL(preview);
+    }
     setFile(null);
     setPreview(null);
     setError(null);
@@ -104,6 +113,10 @@ export function ProofUploadDialog({
   };
 
   const clearFile = () => {
+    // Revoke preview URL to prevent memory leak
+    if (preview) {
+      URL.revokeObjectURL(preview);
+    }
     setFile(null);
     setPreview(null);
     if (fileInputRef.current) {

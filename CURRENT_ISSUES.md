@@ -1,7 +1,7 @@
 # CURRENT_ISSUES.md
 
 > **Purpose**: Track known bugs, blockers, and tech debt. Check before starting any task.
-> **Last Audit**: Feb 5, 2026
+> **Last Audit**: Feb 6, 2026
 
 ---
 
@@ -9,8 +9,7 @@
 
 | # | Issue | File/Area | Notes |
 |---|-------|-----------|-------|
-| C1 | **Payment amount not recorded** | `src/lib/queries.ts:445` | `amount: '0'` hardcoded - breaks transaction audit trail |
-| C2 | **7x `as any` type casts in DB operations** | `src/lib/queries.ts` | Lines 164, 299, 394, 426, 439, 468 + StepReview.tsx:96 |
+| C2 | **8x `as any` type casts in DB operations** | `src/lib/queries.ts` | Lines 164, 299, 394, 426, 439, 468, 527 + StepReview.tsx:96 |
 
 ---
 
@@ -18,10 +17,7 @@
 
 | # | Issue | File/Area | Notes |
 |---|-------|-----------|-------|
-| H1 | Entry fees hardcoded | `src/app/smash/[id]/page.tsx:204-205` | Should fetch from `smash_accepted_tokens` table |
-| H2 | Memory leak - URL.createObjectURL | `src/components/proof/ProofUploadDialog.tsx:70` | Never revoked |
-| H3 | Missing null check on fees | `src/components/payment/PaymentButton.tsx:59` | No validation before passing to handlers |
-| H4 | Error not caught in approveUSDC flow | `src/hooks/usePayment.ts:83` | `needsUSDCApproval()` can throw |
+| — | *All high-priority issues resolved* | — | — |
 
 ---
 
@@ -56,11 +52,16 @@
 | R2 | Missing RLS INSERT policy | Fixed in new schema | Jan 26 |
 | R3 | Project folder confusion | Correct path: `.github/workflows/smash` | Jan 26 |
 | R4 | Docs disorganized | Created CLAUDE.md, docs/, tasks/ structure | Feb 5 |
+| R5 | Payment amount not recorded | Added `amount` param to `joinSmashWithPayment()` flow | Feb 6 |
+| R6 | Entry fees hardcoded | Added `getAcceptedTokensForSmash()`, dynamic fee loading | Feb 6 |
+| R7 | Memory leak in ProofUploadDialog | Added `URL.revokeObjectURL()` in cleanup paths | Feb 6 |
+| R8 | Missing null check on fees | Wrapped payment flow in try-catch | Feb 6 |
+| R9 | Error not caught in approveUSDC flow | Wrapped payment flow in try-catch | Feb 6 |
 
 ---
 
 ## Next Session Priority
 
-1. **Fix C1** - Payment amount recording (critical data loss)
-2. **Fix H1** - Fetch entry fees from DB instead of hardcoding
-3. **Address C2** - Replace `as any` casts with proper types
+1. **Address C2** - Replace `as any` casts with proper types
+2. **Fix M1** - Address remaining TODO comments
+3. **Fix M6** - Validate UUID in uuidToBytes32

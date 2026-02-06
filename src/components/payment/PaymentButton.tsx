@@ -17,7 +17,7 @@ interface PaymentButtonProps {
   entryFeeETH?: string;
   entryFeeUSDC?: string;
   acceptedTokens: TokenOption[];
-  onSuccess: (txHash: string, token: TokenOption) => void;
+  onSuccess: (txHash: string, token: TokenOption, amount: string) => void;
   onCancel?: () => void;
   disabled?: boolean;
   className?: string;
@@ -79,23 +79,27 @@ export function PaymentButton({
 
     setShowModal(true);
 
-    // If USDC and needs approval, approve first
-    if (selectedToken === 'USDC' && needsUSDCApproval()) {
-      const approvalHash = await approveUSDC(entryFee);
-      if (!approvalHash) return;
-      await refetchAllowance();
-    }
+    try {
+      // If USDC and needs approval, approve first
+      if (selectedToken === 'USDC' && needsUSDCApproval()) {
+        const approvalHash = await approveUSDC(entryFee);
+        if (!approvalHash) return;
+        await refetchAllowance();
+      }
 
-    // Execute the join transaction
-    let hash: string | null = null;
-    if (selectedToken === 'ETH') {
-      hash = await joinWithETH(smashId, entryFee);
-    } else {
-      hash = await joinWithUSDC(smashId, entryFee);
-    }
+      // Execute the join transaction
+      let hash: string | null = null;
+      if (selectedToken === 'ETH') {
+        hash = await joinWithETH(smashId, entryFee);
+      } else {
+        hash = await joinWithUSDC(smashId, entryFee);
+      }
 
-    if (hash) {
-      onSuccess(hash, selectedToken);
+      if (hash && entryFee) {
+        onSuccess(hash, selectedToken, entryFee);
+      }
+    } catch (err) {
+      console.error('Payment failed:', err);
     }
   };
 

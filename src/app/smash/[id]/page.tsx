@@ -30,7 +30,9 @@ import {
   getParticipantsForSmash,
   joinSmashWithPayment,
   hasUserJoinedSmash,
+  getAcceptedTokensForSmash,
   SmashParticipant,
+  AcceptedToken,
 } from '@/lib/queries';
 import { mockSmashes } from '@/lib/mock-data';
 import { Smash, SmashStatus, SmashSubmission } from '@/types';
@@ -102,6 +104,7 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
   const [proofDialogOpen, setProofDialogOpen] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [acceptedTokensData, setAcceptedTokensData] = useState<AcceptedToken[]>([]);
 
   // Get current user's wallet address from Privy
   const currentUserId = user?.wallet?.address || '';
@@ -133,6 +136,15 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
       console.error('Failed to check participation:', err);
     }
   }, [id, currentUserId]);
+
+  const fetchAcceptedTokens = useCallback(async () => {
+    try {
+      const tokens = await getAcceptedTokensForSmash(id);
+      setAcceptedTokensData(tokens);
+    } catch (err) {
+      console.error('Failed to fetch accepted tokens:', err);
+    }
+  }, [id]);
 
   useEffect(() => {
     async function fetchSmash() {
@@ -171,7 +183,8 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
     fetchSmash();
     fetchSubmissions();
     fetchParticipants();
-  }, [id, fetchSubmissions, fetchParticipants]);
+    fetchAcceptedTokens();
+  }, [id, fetchSubmissions, fetchParticipants, fetchAcceptedTokens]);
 
   // Check if user has joined when they connect wallet
   useEffect(() => {
@@ -180,10 +193,10 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
     }
   }, [currentUserId, checkIfJoined]);
 
-  const handlePaymentSuccess = async (txHash: string, token: TokenOption) => {
+  const handlePaymentSuccess = async (txHash: string, token: TokenOption, amount: string) => {
     try {
       // Record the payment in the database
-      await joinSmashWithPayment(id, currentUserId, txHash, token);
+      await joinSmashWithPayment(id, currentUserId, txHash, token, amount);
       setHasJoined(true);
       setShowPayment(false);
       // Refresh participants list
@@ -198,11 +211,15 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
     await fetchParticipants();
   };
 
-  // TODO: These should come from DB - smash_accepted_tokens table
-  // For now, hardcode based on stakes type
-  const acceptedTokens: TokenOption[] = smash?.stakesType === 'monetary' ? ['ETH', 'USDC'] : [];
-  const entryFeeETH = '0.01'; // TODO: from DB
-  const entryFeeUSDC = smash?.entryFee?.toString() || '10'; // TODO: from DB
+  // Derive accepted tokens from DB data, fallback to stakes type logic
+  const acceptedTokens: TokenOption[] = acceptedTokensData.length > 0
+    ? acceptedTokensData.map((t) => t.symbol)
+    : smash?.stakesType === 'monetary' ? ['ETH', 'USDC'] : [];
+
+  // Entry fee from smash record (stored in USDC equivalent)
+  // For ETH, we use a rough conversion (could be improved with price oracle)
+  const entryFeeUSDC = smash?.entryFee?.toString() || '0';
+  const entryFeeETH = smash?.entryFee ? (smash.entryFee / 2500).toFixed(6) : '0'; // Rough USD/ETH conversion
 
   // Loading state
   if (loading) {
