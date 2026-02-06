@@ -84,19 +84,3 @@ export function useTokenBalance(address: `0x${string}` | undefined): UseTokenBal
     refetch: fetchBalances,
   };
 }
-
-// Helper hook for single token balance
-export function useSingleTokenBalance(
-  address: `0x${string}` | undefined,
-  tokenSymbol: 'ETH' | 'USDC'
-): { balance: bigint; formatted: string; isLoading: boolean } {
-  const { balances, isLoading } = useTokenBalance(address);
-
-  const tokenBalance = balances[tokenSymbol];
-
-  return {
-    balance: tokenBalance?.balance ?? BigInt(0),
-    formatted: tokenBalance?.formatted ?? '0',
-    isLoading,
-  };
-}

@@ -1,6 +1,18 @@
 import { supabase } from './supabase';
-import type { Smash as DbSmash, Submission, NewSubmission, User as DbUser, Participant, NewParticipant } from './database.types';
+import type {
+  DbSmash,
+  DbSubmission,
+  NewSubmission,
+  DbUser,
+  Participant,
+  NewParticipant,
+  PaymentToken,
+  PaymentTransaction,
+  NewPaymentTransaction,
+  ParticipantStatus,
+} from './database.types';
 import type { Smash, SmashCategory, SmashStatus, VerificationMethod, SmashSubmission, User } from '@/types';
+import { DEFAULT_MAX_PARTICIPANTS } from './constants';
 
 // Transform database smash to frontend smash type
 export function transformSmash(dbSmash: DbSmash): Smash {
@@ -15,7 +27,7 @@ export function transformSmash(dbSmash: DbSmash): Smash {
     stakesType: (dbSmash.stakes_type as 'monetary' | 'prize' | 'bragging') || 'monetary',
     creatorId: dbSmash.creator_id || '',
     participants: [], // Will be populated separately if needed
-    maxParticipants: dbSmash.max_participants || 100,
+    maxParticipants: dbSmash.max_participants || DEFAULT_MAX_PARTICIPANTS,
     createdAt: new Date(dbSmash.created_at),
     startsAt: dbSmash.starts_at ? new Date(dbSmash.starts_at) : new Date(),
     endsAt: dbSmash.ends_at ? new Date(dbSmash.ends_at) : new Date(),
@@ -102,7 +114,7 @@ export async function getSmashesByCreator(creatorId: string) {
 }
 
 // Transform database submission to frontend submission type
-export function transformSubmission(dbSubmission: Submission): SmashSubmission {
+export function transformSubmission(dbSubmission: DbSubmission): SmashSubmission {
   return {
     id: dbSubmission.id,
     smashId: dbSubmission.smash_id || '',
@@ -159,11 +171,12 @@ export async function uploadProofFile(
 }
 
 // Create a new submission record
+// Note: Using type assertion because Supabase's generated types infer `never` for inserts
+// due to RLS policies. Regenerate types with `npx supabase gen types` when CLI access is available.
 export async function createSubmission(submission: NewSubmission) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('submissions')
-    .insert(submission)
+    .insert(submission as never)
     .select()
     .single();
 
@@ -172,7 +185,7 @@ export async function createSubmission(submission: NewSubmission) {
     throw error;
   }
 
-  return transformSubmission(data as Submission);
+  return transformSubmission(data);
 }
 
 // Submit proof (upload file + create record)
@@ -287,6 +300,8 @@ export async function getSubmissionsByUser(userId: string) {
 }
 
 // Get or create user by wallet address
+// Note: Using type assertion because Supabase's generated types infer `never` for inserts
+// due to RLS policies. Regenerate types with `npx supabase gen types` when CLI access is available.
 export async function getOrCreateUser(address: string, username?: string) {
   // Try to fetch existing user
   const existing = await getUserByAddress(address);
@@ -295,13 +310,12 @@ export async function getOrCreateUser(address: string, username?: string) {
   }
 
   // Create new user
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('users')
     .insert({
       wallet_address: address,
       username: username || null,
-    })
+    } as never)
     .select()
     .single();
 
@@ -322,7 +336,7 @@ export interface SmashParticipant {
   smashId: string;
   userId: string;
   joinedAt: Date;
-  status: 'active' | 'withdrawn' | 'completed' | 'failed';
+  status: ParticipantStatus;
 }
 
 // Transform database participant to frontend type
@@ -332,7 +346,7 @@ export function transformParticipant(dbParticipant: Participant): SmashParticipa
     smashId: dbParticipant.smash_id,
     userId: dbParticipant.user_id,
     joinedAt: new Date(dbParticipant.joined_at),
-    status: dbParticipant.status as SmashParticipant['status'],
+    status: dbParticipant.status as ParticipantStatus,
   };
 }
 
@@ -384,16 +398,16 @@ export async function joinSmash(smashId: string, userId: string): Promise<SmashP
   await getOrCreateUser(userId);
 
   // Create participant record
+  // Note: Using type assertion because Supabase's generated types infer `never` for inserts
   const participantData: NewParticipant = {
     smash_id: smashId,
     user_id: userId,
     status: 'active',
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('participants')
-    .insert(participantData)
+    .insert(participantData as never)
     .select()
     .single();
 
@@ -423,8 +437,7 @@ export async function joinSmashWithPayment(
   await getOrCreateUser(userId);
 
   // Get token ID from payment_tokens table
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: tokenData, error: tokenError } = await (supabase as any)
+  const { data: tokenData, error: tokenError } = await supabase
     .from('payment_tokens')
     .select('id')
     .eq('symbol', tokenSymbol)
@@ -435,19 +448,24 @@ export async function joinSmashWithPayment(
     throw new Error(`Token ${tokenSymbol} not found`);
   }
 
+  // Cast to get the id property (types resolve to never due to RLS)
+  const tokenId = (tokenData as { id: string }).id;
+
   // Create payment transaction record
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: txData, error: txError } = await (supabase as any)
+  // Note: Using type assertion because Supabase's generated types infer `never` for inserts
+  const txInsert: NewPaymentTransaction = {
+    smash_id: smashId,
+    user_id: userId,
+    token_id: tokenId,
+    amount,
+    tx_hash: txHash,
+    tx_type: 'entry',
+    status: 'confirmed',
+  };
+
+  const { data: txData, error: txError } = await supabase
     .from('payment_transactions')
-    .insert({
-      smash_id: smashId,
-      user_id: userId,
-      token_id: tokenData.id,
-      amount,
-      tx_hash: txHash,
-      tx_type: 'entry',
-      status: 'confirmed',
-    })
+    .insert(txInsert as never)
     .select()
     .single();
 
@@ -457,18 +475,17 @@ export async function joinSmashWithPayment(
   }
 
   // Create participant record with payment reference
-  const participantData = {
+  const participantData: NewParticipant = {
     smash_id: smashId,
     user_id: userId,
     status: 'active',
-    payment_tx_id: txData.id,
-    paid_token_id: tokenData.id,
+    payment_tx_id: (txData as PaymentTransaction).id,
+    paid_token_id: tokenId,
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('participants')
-    .insert(participantData)
+    .insert(participantData as never)
     .select()
     .single();
 
@@ -520,10 +537,20 @@ export interface AcceptedToken {
   contractAddress: string | null;
 }
 
+// Type for the joined query result (relationships aren't in auto-generated types)
+type SmashTokenWithPayment = {
+  token_id: string;
+  payment_tokens: {
+    symbol: string;
+    name: string;
+    decimals: number;
+    contract_address: string | null;
+  } | null;
+};
+
 // Get accepted payment tokens for a smash
 export async function getAcceptedTokensForSmash(smashId: string): Promise<AcceptedToken[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('smash_accepted_tokens')
     .select(`
       token_id,
@@ -534,7 +561,8 @@ export async function getAcceptedTokensForSmash(smashId: string): Promise<Accept
         contract_address
       )
     `)
-    .eq('smash_id', smashId);
+    .eq('smash_id', smashId)
+    .returns<SmashTokenWithPayment[]>();
 
   if (error) {
     console.error('Error fetching accepted tokens:', error);
@@ -545,17 +573,7 @@ export async function getAcceptedTokensForSmash(smashId: string): Promise<Accept
     return [];
   }
 
-  type TokenRow = {
-    token_id: string;
-    payment_tokens: {
-      symbol: string;
-      name: string;
-      decimals: number;
-      contract_address: string | null;
-    } | null;
-  };
-
-  return (data as TokenRow[])
+  return data
     .filter((row) => row.payment_tokens)
     .map((row) => {
       const token = row.payment_tokens!;

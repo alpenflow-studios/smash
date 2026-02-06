@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { SmashCard } from '@/components/smash-card';
 import { WalletConnect } from '@/components/wallet-connect';
 import { getSmashes } from '@/lib/queries';
@@ -10,6 +11,7 @@ import type { Smash } from '@/types';
 import { Loader2 } from 'lucide-react';
 
 export default function Home() {
+  const router = useRouter();
   const [smashes, setSmashes] = useState<Smash[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,8 +111,8 @@ export default function Home() {
               <SmashCard
                 key={smash.id}
                 smash={smash}
-                onJoin={() => console.log('Join:', smash.id)}
-                onBet={() => console.log('Bet:', smash.id)}
+                onJoin={() => router.push(`/smash/${smash.id}`)}
+                onBet={() => router.push(`/smash/${smash.id}?tab=betting`)}
               />
             ))}
           </div>

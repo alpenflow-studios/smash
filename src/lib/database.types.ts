@@ -308,12 +308,21 @@ export type Database = {
   }
 }
 
-// Convenience types
-export type User = Database['public']['Tables']['users']['Row']
-export type Smash = Database['public']['Tables']['smashes']['Row']
-export type Submission = Database['public']['Tables']['submissions']['Row']
-export type Bet = Database['public']['Tables']['bets']['Row']
+// ============================================
+// Status types (for consistent enum-like behavior)
+// ============================================
 
+// Participant status values used throughout the app
+export type ParticipantStatus = 'active' | 'withdrawn' | 'completed' | 'failed';
+
+// Convenience types for Row (read) operations
+// Prefixed with "Db" to distinguish from frontend types in @/types
+export type DbUser = Database['public']['Tables']['users']['Row']
+export type DbSmash = Database['public']['Tables']['smashes']['Row']
+export type DbSubmission = Database['public']['Tables']['submissions']['Row']
+export type DbBet = Database['public']['Tables']['bets']['Row']
+
+// Convenience types for Insert operations
 export type NewUser = Database['public']['Tables']['users']['Insert']
 export type NewSmash = Database['public']['Tables']['smashes']['Insert']
 export type NewSubmission = Database['public']['Tables']['submissions']['Insert']
@@ -324,3 +333,18 @@ export type PaymentToken = Database['public']['Tables']['payment_tokens']['Row']
 export type SmashAcceptedToken = Database['public']['Tables']['smash_accepted_tokens']['Row']
 export type PaymentTransaction = Database['public']['Tables']['payment_transactions']['Row']
 export type NewPaymentTransaction = Database['public']['Tables']['payment_transactions']['Insert']
+
+// ============================================
+// Helper types for Supabase query operations
+// ============================================
+
+// Response type for insert operations with .select()
+export type InsertResponse<T> = {
+  data: T | null;
+  error: { message: string; code?: string } | null;
+};
+
+// Type for smash_accepted_tokens with joined payment_tokens
+export type SmashAcceptedTokenWithPaymentToken = SmashAcceptedToken & {
+  payment_tokens: PaymentToken | null;
+};

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { SmashCategory, Visibility, StakesType, VerificationMethod } from '@/types';
+import { TOTAL_CREATE_STEPS } from '@/lib/constants';
 
 // Re-export types for components that import from this file
 export type { SmashCategory, Visibility, StakesType, VerificationMethod };
@@ -115,7 +116,7 @@ export const useCreateSmash = create<CreateSmashState>((set) => ({
   ...initialState,
   
   setStep: (step) => set({ currentStep: step }),
-  nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, 8) })),
+  nextStep: () => set((state) => ({ currentStep: Math.min(state.currentStep + 1, TOTAL_CREATE_STEPS) })),
   prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })),
   
   setTitle: (title) => set({ title }),

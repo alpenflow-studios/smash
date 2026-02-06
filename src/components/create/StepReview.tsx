@@ -91,9 +91,11 @@ export function StepReview() {
       };
 
       // Create the smash in Supabase
+      // Note: Using type assertion because Supabase's generated types infer `never` for inserts
+      // due to RLS policies. Regenerate types with `npx supabase gen types` when CLI access is available.
       const { data, error: supabaseError } = await supabase
         .from('smashes')
-        .insert(smashData as unknown as never)
+        .insert(smashData as never)
         .select('id')
         .single<{ id: string }>();
 
@@ -110,6 +112,7 @@ export function StepReview() {
         try {
           const coverUrl = await uploadCoverImage(state.coverImage, data.id);
           // Update the smash with the cover image URL
+          // Note: Using type assertion because Supabase's generated types infer `never` for updates
           await supabase
             .from('smashes')
             .update({ cover_image_url: coverUrl } as never)

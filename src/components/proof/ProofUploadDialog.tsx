@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { submitProof } from '@/lib/queries';
+import { MAX_PROOF_FILE_SIZE_BYTES, MAX_PROOF_FILE_SIZE_MB } from '@/lib/constants';
 
 type ProofType = 'photo' | 'video' | 'document';
 
@@ -22,8 +23,6 @@ interface ProofUploadDialogProps {
   userId: string;
   onSuccess: () => void;
 }
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 const ACCEPTED_TYPES: Record<ProofType, string[]> = {
   photo: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
@@ -58,8 +57,8 @@ export function ProofUploadDialog({
     }
 
     // Validate file size
-    if (selectedFile.size > MAX_FILE_SIZE) {
-      setError('File too large. Maximum size is 50MB.');
+    if (selectedFile.size > MAX_PROOF_FILE_SIZE_BYTES) {
+      setError(`File too large. Maximum size is ${MAX_PROOF_FILE_SIZE_MB}MB.`);
       return;
     }
 

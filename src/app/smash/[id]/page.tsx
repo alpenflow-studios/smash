@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import {
   ArrowLeft,
@@ -37,6 +38,7 @@ import {
 import { mockSmashes } from '@/lib/mock-data';
 import { Smash, SmashStatus, SmashSubmission } from '@/types';
 import { ProofUploadDialog, ProofGallery } from '@/components/proof';
+import { ETH_USD_FALLBACK_PRICE } from '@/lib/constants';
 
 const getCategoryColor = (category: string) => {
   const colors = {
@@ -94,6 +96,8 @@ const shortenAddress = (address: string) => {
 
 export default function SmashDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'details';
   const { authenticated, login, user } = usePrivy();
 
   const [smash, setSmash] = useState<Smash | null>(null);
@@ -219,7 +223,7 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
   // Entry fee from smash record (stored in USDC equivalent)
   // For ETH, we use a rough conversion (could be improved with price oracle)
   const entryFeeUSDC = smash?.entryFee?.toString() || '0';
-  const entryFeeETH = smash?.entryFee ? (smash.entryFee / 2500).toFixed(6) : '0'; // Rough USD/ETH conversion
+  const entryFeeETH = smash?.entryFee ? (smash.entryFee / ETH_USD_FALLBACK_PRICE).toFixed(6) : '0';
 
   // Loading state
   if (loading) {
@@ -451,7 +455,7 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
         </Card>
 
         {/* Tabs */}
-        <Tabs defaultValue="details" className="w-full">
+        <Tabs defaultValue={initialTab} className="w-full">
           <TabsList className="bg-gray-900 border border-gray-800 w-full justify-start">
             <TabsTrigger value="details" className="data-[state=active]:bg-gray-800">
               Details

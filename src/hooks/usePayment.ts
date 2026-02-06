@@ -7,6 +7,7 @@ import { waitForTransaction } from '@/lib/blockchain/viem-client';
 import { smashVaultAbi } from '@/lib/blockchain/contracts/smash-vault-abi';
 import { erc20Abi } from '@/lib/blockchain/contracts/erc20-abi';
 import { SMASH_VAULT_ADDRESS, SUPPORTED_TOKENS } from '@/lib/blockchain/config';
+import { BYTES32_HEX_LENGTH } from '@/lib/constants';
 
 export type PaymentStatus = 'idle' | 'approving' | 'approved' | 'paying' | 'confirming' | 'success' | 'error';
 
@@ -30,7 +31,7 @@ function uuidToBytes32(uuid: string): `0x${string}` {
     throw new Error(`Invalid UUID format: ${uuid}`);
   }
   const hex = uuid.replace(/-/g, '');
-  return `0x${hex.padEnd(64, '0')}` as `0x${string}`;
+  return `0x${hex.padEnd(BYTES32_HEX_LENGTH, '0')}` as `0x${string}`;
 }
 
 export function usePayment(): UsePaymentResult {

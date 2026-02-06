@@ -1,10 +1,21 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { CreateSmashForm } from '@/components/create';
 import { WalletConnect } from '@/components/wallet-connect';
+import { useCreateSmash } from '@/store/use-create-smash';
 
 export default function CreatePage() {
+  const reset = useCreateSmash((state) => state.reset);
+
+  // Reset form state when navigating away from create page
+  useEffect(() => {
+    return () => {
+      reset();
+    };
+  }, [reset]);
+
   return (
     <>
       {/* Header */}
