@@ -30,7 +30,7 @@
 | M3 | Unused `useStore` hook | `src/store/use-store.ts` | Only `useCreateSmash` used |
 | M4 | Unused `useSingleTokenBalance` | `src/hooks/useTokenBalance.ts:89-102` | Exported but never imported |
 | M5 | Participant status type mismatch | `database.types.ts` vs `queries.ts:325` | DB allows any string, code expects enum |
-| M6 | UUID not validated in uuidToBytes32 | `src/hooks/usePayment.ts:25-27` | Could produce invalid bytes32 |
+| ~~M6~~ | ~~UUID not validated in uuidToBytes32~~ | — | Resolved Feb 6 |
 
 ---
 
@@ -57,11 +57,12 @@
 | R7 | Memory leak in ProofUploadDialog | Added `URL.revokeObjectURL()` in cleanup paths | Feb 6 |
 | R8 | Missing null check on fees | Wrapped payment flow in try-catch | Feb 6 |
 | R9 | Error not caught in approveUSDC flow | Wrapped payment flow in try-catch | Feb 6 |
+| R10 | UUID not validated in uuidToBytes32 | Added UUID regex validation | Feb 6 |
 
 ---
 
 ## Next Session Priority
 
-1. **Address C2** - Replace `as any` casts with proper types
+1. **Address C2** - Replace `as any` casts with proper types (requires Supabase type regen)
 2. **Fix M1** - Address remaining TODO comments
-3. **Fix M6** - Validate UUID in uuidToBytes32
+3. **Fix M2** - Implement Join/Bet handlers (currently console.log stubs)

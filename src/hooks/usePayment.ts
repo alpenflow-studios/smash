@@ -21,8 +21,14 @@ interface UsePaymentResult {
   reset: () => void;
 }
 
+// UUID v4 regex pattern
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Convert UUID to bytes32
 function uuidToBytes32(uuid: string): `0x${string}` {
+  if (!UUID_REGEX.test(uuid)) {
+    throw new Error(`Invalid UUID format: ${uuid}`);
+  }
   const hex = uuid.replace(/-/g, '');
   return `0x${hex.padEnd(64, '0')}` as `0x${string}`;
 }

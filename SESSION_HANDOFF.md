@@ -6,28 +6,33 @@
 
 ## Last Session
 
-- **Date**: 2026-02-05
-- **Duration**: ~30 messages
+- **Date**: 2026-02-06
+- **Duration**: ~20 messages
 - **Branch**: `main`
 
 ---
 
 ## What Was Done
 
-1. Pulled new files from GitHub (`CLAUDE_MCP_ROLE.md`, `terminal_fullstack.md`)
-2. Reorganized project structure:
-   - Deleted old docs (`CLAUDE_MCP_ROLE.md`, `PROJECT_SUMMARY.md`, `terminal_fullstack.md`)
-   - Moved `SMASH_SPEC.md` → `docs/PRD.md`
-3. Created comprehensive documentation from bundle:
-   - `~/.claude/CLAUDE.md` (global config)
-   - `CLAUDE.md` (project config)
-   - `docs/ARCHITECTURE.md`
-   - `docs/CONTRACTS.md`
-   - `docs/WEB3_COMMANDS.md`
-   - `docs/MAINTENANCE.md`
-   - `tasks/CURRENT_SPRINT.md`
-   - `.claude/skills/update/SKILL.md`
-4. Ran full codebase audit - documented 17 issues in `CURRENT_ISSUES.md`
+1. **Fixed C1** - Payment amount not recorded
+   - Added `amount` parameter to `joinSmashWithPayment()`
+   - Updated `PaymentButton` → `page.tsx` → `queries.ts` flow
+
+2. **Fixed H1** - Entry fees hardcoded
+   - Created `getAcceptedTokensForSmash()` query function
+   - Page now fetches tokens from `smash_accepted_tokens` table
+   - Falls back to stakes-type logic if no tokens configured
+
+3. **Fixed H2** - Memory leak in ProofUploadDialog
+   - Added `URL.revokeObjectURL()` in `handleClose`, `clearFile`, and `handleFileSelect`
+
+4. **Fixed H3/H4** - Payment error handling
+   - Wrapped `handlePayment` in try-catch to catch `parseUnits` and approval errors
+
+5. **Fixed M6** - UUID validation
+   - Added regex validation in `uuidToBytes32()` before conversion
+
+6. Updated `CURRENT_ISSUES.md` with resolutions (R5-R10)
 
 ---
 
@@ -39,47 +44,48 @@ Nothing in progress - clean handoff.
 
 ## What's Next
 
-1. **Fix C1** - Payment amount not recorded (`src/lib/queries.ts:445`)
-   - Change `amount: '0'` to actual payment amount
-   - Critical: transaction audit trail is broken
+1. **Address C2** - Replace 8x `as any` casts with proper types
+   - Requires regenerating Supabase types with foreign key relationships
+   - Lines: 164, 299, 394, 426, 439, 468, 527 in `queries.ts` + StepReview.tsx:96
 
-2. **Fix H1** - Entry fees hardcoded (`src/app/smash/[id]/page.tsx:204-205`)
-   - Query `smash_accepted_tokens` table instead of hardcoding
+2. **Fix M1** - Address remaining TODO comments
+   - Most were about hardcoded fees (now fixed)
 
-3. **Address C2** - Replace 7x `as any` casts with proper types
-   - All in `src/lib/queries.ts` and `StepReview.tsx`
+3. **Fix M2** - Implement Join/Bet handlers on homepage
+   - Currently console.log stubs at `src/app/page.tsx:112-113`
 
 ---
 
 ## Decisions Made
 
-- **Documentation structure**: Using `docs/`, `tasks/`, `.claude/skills/` folders
-- **Global config**: Created `~/.claude/CLAUDE.md` for cross-project preferences
-- **Audit approach**: Document issues only, fix in fresh session
+- **Entry fee storage**: `smash.entry_fee` stores USDC amount; ETH derived via conversion
+- **Token fallback**: If `smash_accepted_tokens` is empty, fall back to stakes-type logic
+- **Type safety**: Using `as any` workaround until Supabase types are regenerated
 
 ---
 
 ## Open Questions
 
-- [ ] Verify `smash_accepted_tokens` table exists and has correct schema
-- [ ] Decide if unused hooks (`useStore`, `useSingleTokenBalance`) should be deleted or kept
+- [x] Verify `smash_accepted_tokens` table exists — confirmed, schema has `smash_id`, `token_id`
+- [ ] Decide if unused hooks (`useStore`, `useSingleTokenBalance`) should be deleted
+- [ ] Consider adding price oracle for ETH/USD conversion (currently hardcoded 2500)
 
 ---
 
 ## State of Tests
 
+- `npm run build`: ✅ Passes
 - `forge test`: Not run (no Foundry setup in this repo)
-- `pnpm test`: Not configured
-- `pnpm typecheck`: Not run this session
-- `pnpm lint`: Not run this session
+- `npm test`: Not configured
+- `npm run lint`: Not run this session
 
 ---
 
 ## Environment Notes
 
 - Working directory: `/Users/mpr/first/hello_foundry/.github/workflows/smash`
-- All changes committed and pushed to GitHub
-- Branch is clean, up to date with origin/main
+- Branch: `main` (1 commit ahead of origin)
+- Commit: `16a64c8` - "fix: resolve critical payment and UX issues"
 
 ---
 
@@ -89,19 +95,19 @@ Nothing in progress - clean handoff.
 |------|---------|
 | `CLAUDE.md` | Project context, links, domain concepts |
 | `docs/PRD.md` | Full smash spec, lifecycle, schema |
-| `docs/ARCHITECTURE.md` | System design diagrams |
-| `docs/CONTRACTS.md` | SmashVault specs, deploy commands |
-| `CURRENT_ISSUES.md` | 17 issues documented with severity |
-| `tasks/CURRENT_SPRINT.md` | Active tasks with acceptance criteria |
+| `CURRENT_ISSUES.md` | Issue tracker with severity levels |
+| `src/lib/queries.ts` | All Supabase queries |
+| `src/hooks/usePayment.ts` | Blockchain payment logic |
 
 ---
 
 ## Quick Start for Next Session
 
 ```
-Continue working on smash.xyz at /Users/mpr/first/hello_foundry/.github/workflows/smash
+Continue working on smash.xyz
 
-Read CURRENT_ISSUES.md - prioritize C1 (payment amount not recorded).
+Read CURRENT_ISSUES.md - prioritize C2 (as any casts).
 
-Check tasks/CURRENT_SPRINT.md for feature work.
+To fix C2, regenerate Supabase types:
+npx supabase gen types typescript --project-id pdjrexphjivdwfbvgbqm > src/lib/database.types.ts
 ```
