@@ -18,8 +18,8 @@
 
 | Resource | URL |
 |----------|-----|
-| Supabase Dashboard | https://supabase.com/dashboard/project/pdjrexphjivdwfbvgbqm |
-| Supabase SQL Editor | https://supabase.com/dashboard/project/pdjrexphjivdwfbvgbqm/sql/new |
+| Supabase Dashboard | https://supabase.com/dashboard/project/utbkhzooafzepabtrhnc |
+| Supabase SQL Editor | https://supabase.com/dashboard/project/utbkhzooafzepabtrhnc/sql/new |
 | Vercel Dashboard | https://vercel.com/classcoin/v0-smash-xyz |
 | GitHub Repo | https://github.com/alpenflow-studios/smash |
 | Base Sepolia Explorer | https://sepolia.basescan.org |
@@ -41,7 +41,7 @@
 
 ```env
 # Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://pdjrexphjivdwfbvgbqm.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://utbkhzooafzepabtrhnc.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your_anon_key>
 
 # Chain / Contracts
@@ -62,7 +62,7 @@ NEXT_PUBLIC_PRIVY_APP_ID=<your_privy_app_id>
 | Layer | Technology |
 |-------|-----------|
 | Auth | Privy (email, Google, wallet) |
-| Database | Supabase (project ID: `pdjrexphjivdwfbvgbqm`) |
+| Database | Supabase (project ID: `utbkhzooafzepabtrhnc`) |
 | Chain | Base Sepolia (84532) for dev, Base mainnet (8453) for prod |
 | State | Zustand |
 

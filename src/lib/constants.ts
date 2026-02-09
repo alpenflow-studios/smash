@@ -12,7 +12,7 @@ export const MAX_PROOF_FILE_SIZE_BYTES = MAX_PROOF_FILE_SIZE_MB * 1024 * 1024;
 // Blockchain
 export const BYTES32_HEX_LENGTH = 64;
 
-// Price conversion (temporary until oracle integration)
+// Price conversion fallback (used when Coinbase API is unavailable)
 export const ETH_USD_FALLBACK_PRICE = 2500;
 
 // Smash defaults

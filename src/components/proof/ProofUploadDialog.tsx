@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Upload, X, Camera, Video, FileText, Loader2 } from 'lucide-react';
+import { usePrivy } from '@privy-io/react-auth';
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { submitProof } from '@/lib/queries';
+import { apiUpload } from '@/lib/api-client';
 import { MAX_PROOF_FILE_SIZE_BYTES, MAX_PROOF_FILE_SIZE_MB } from '@/lib/constants';
 
 type ProofType = 'photo' | 'video' | 'document';
@@ -20,7 +21,6 @@ interface ProofUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   smashId: string;
-  userId: string;
   onSuccess: () => void;
 }
 
@@ -34,9 +34,9 @@ export function ProofUploadDialog({
   open,
   onOpenChange,
   smashId,
-  userId,
   onSuccess,
 }: ProofUploadDialogProps) {
+  const { getAccessToken } = usePrivy();
   const [proofType, setProofType] = useState<ProofType>('photo');
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -88,7 +88,11 @@ export function ProofUploadDialog({
     setError(null);
 
     try {
-      await submitProof(file, smashId, userId, proofType);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('smashId', smashId);
+      formData.append('contentType', proofType);
+      await apiUpload('/api/submissions', formData, getAccessToken);
       onSuccess();
       handleClose();
     } catch (err) {

@@ -2,15 +2,10 @@ import { supabase } from './supabase';
 import type {
   DbSmash,
   DbSubmission,
-  NewSubmission,
   DbUser,
-  Participant,
-  NewParticipant,
-  PaymentToken,
-  PaymentTransaction,
-  NewPaymentTransaction,
+  DbSmashParticipant,
   ParticipantStatus,
-} from './database.types';
+} from '@/types/database.types';
 import type { Smash, SmashCategory, SmashStatus, VerificationMethod, SmashSubmission, User } from '@/types';
 import { DEFAULT_MAX_PARTICIPANTS } from './constants';
 
@@ -28,12 +23,12 @@ export function transformSmash(dbSmash: DbSmash): Smash {
     creatorId: dbSmash.creator_id || '',
     participants: [], // Will be populated separately if needed
     maxParticipants: dbSmash.max_participants || DEFAULT_MAX_PARTICIPANTS,
-    createdAt: new Date(dbSmash.created_at),
+    createdAt: dbSmash.created_at ? new Date(dbSmash.created_at) : new Date(),
     startsAt: dbSmash.starts_at ? new Date(dbSmash.starts_at) : new Date(),
     endsAt: dbSmash.ends_at ? new Date(dbSmash.ends_at) : new Date(),
     verificationMethod: (dbSmash.verification_method as VerificationMethod) || 'visual',
     proofRequirements: [], // Could be stored in a separate field or table
-    bettingEnabled: dbSmash.betting_enabled,
+    bettingEnabled: dbSmash.betting_enabled ?? false,
     imageUrl: dbSmash.cover_image_url || undefined,
     tags: [], // Could be stored in a separate field or table
   };
@@ -119,10 +114,10 @@ export function transformSubmission(dbSubmission: DbSubmission): SmashSubmission
     id: dbSubmission.id,
     smashId: dbSubmission.smash_id || '',
     participantId: dbSubmission.user_id || '',
-    proofUrl: dbSubmission.proof_url,
-    proofType: (dbSubmission.proof_type as SmashSubmission['proofType']) || 'photo',
-    submittedAt: new Date(dbSubmission.submitted_at),
-    verified: dbSubmission.verified,
+    proofUrl: dbSubmission.content_url || '',
+    proofType: (dbSubmission.content_type as SmashSubmission['proofType']) || 'photo',
+    submittedAt: dbSubmission.submitted_at ? new Date(dbSubmission.submitted_at) : new Date(),
+    verified: dbSubmission.verification_status === 'verified',
   };
 }
 
@@ -142,71 +137,20 @@ export async function getSubmissionsForSmash(smashId: string) {
   return (data || []).map(transformSubmission);
 }
 
-// Upload proof file to Supabase Storage
-export async function uploadProofFile(
-  file: File,
-  smashId: string,
-  userId: string
-): Promise<string> {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${smashId}/${userId}/${Date.now()}.${fileExt}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from('smash-proofs')
-    .upload(fileName, file, {
-      cacheControl: '3600',
-      upsert: false,
-    });
-
-  if (uploadError) {
-    console.error('Error uploading proof:', uploadError);
-    throw uploadError;
-  }
-
-  const { data: urlData } = supabase.storage
-    .from('smash-proofs')
-    .getPublicUrl(fileName);
-
-  return urlData.publicUrl;
-}
-
-// Create a new submission record
-// Note: Using type assertion because Supabase's generated types infer `never` for inserts
-// due to RLS policies. Regenerate types with `npx supabase gen types` when CLI access is available.
-export async function createSubmission(submission: NewSubmission) {
+// Fetch submissions by user
+export async function getSubmissionsByUser(userId: string) {
   const { data, error } = await supabase
     .from('submissions')
-    .insert(submission as never)
-    .select()
-    .single();
+    .select('*')
+    .eq('user_id', userId)
+    .order('submitted_at', { ascending: false });
 
   if (error) {
-    console.error('Error creating submission:', error);
+    console.error('Error fetching user submissions:', error);
     throw error;
   }
 
-  return transformSubmission(data);
-}
-
-// Submit proof (upload file + create record)
-export async function submitProof(
-  file: File,
-  smashId: string,
-  userId: string,
-  proofType: 'photo' | 'video' | 'gps' | 'document'
-) {
-  // Upload the file first
-  const proofUrl = await uploadProofFile(file, smashId, userId);
-
-  // Create the submission record
-  const submission = await createSubmission({
-    smash_id: smashId,
-    user_id: userId,
-    proof_url: proofUrl,
-    proof_type: proofType,
-  });
-
-  return submission;
+  return (data || []).map(transformSubmission);
 }
 
 // Transform database user to frontend user type
@@ -216,12 +160,12 @@ export function transformUser(dbUser: DbUser, stats?: UserStats): User {
     address: dbUser.wallet_address,
     username: dbUser.username || undefined,
     avatarUrl: dbUser.avatar_url || undefined,
-    smashesCreated: stats?.smashesCreated || 0,
-    smashesJoined: stats?.smashesJoined || 0,
-    smashesWon: stats?.smashesWon || 0,
+    smashesCreated: stats?.smashesCreated || dbUser.total_smashes_created || 0,
+    smashesJoined: stats?.smashesJoined || dbUser.total_smashes_joined || 0,
+    smashesWon: stats?.smashesWon || dbUser.total_smashes_won || 0,
     totalWinnings: stats?.totalWinnings || 0,
-    reputationScore: dbUser.reputation_score,
-    verifiedIdentity: false,
+    reputationScore: dbUser.reputation_score ?? 0,
+    verifiedIdentity: dbUser.is_verified ?? false,
   };
 }
 
@@ -248,90 +192,14 @@ export async function getUserByAddress(address: string) {
     throw error;
   }
 
-  // Fetch stats
-  const stats = await getUserStats(address);
-
-  return transformUser(data, stats);
-}
-
-// Fetch user stats (smashes created, joined, won, etc.)
-export async function getUserStats(address: string): Promise<UserStats> {
-  // Count smashes created
-  const { count: createdCount } = await supabase
-    .from('smashes')
-    .select('*', { count: 'exact', head: true })
-    .eq('creator_id', address);
-
-  // Count submissions (proxy for joined smashes)
-  const { count: joinedCount } = await supabase
-    .from('submissions')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', address);
-
-  // Count verified submissions (proxy for wins)
-  const { count: wonCount } = await supabase
-    .from('submissions')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', address)
-    .eq('verified', true);
-
-  return {
-    smashesCreated: createdCount || 0,
-    smashesJoined: joinedCount || 0,
-    smashesWon: wonCount || 0,
-    totalWinnings: 0, // Would need to calculate from completed smashes
-  };
-}
-
-// Fetch submissions by user
-export async function getSubmissionsByUser(userId: string) {
-  const { data, error } = await supabase
-    .from('submissions')
-    .select('*')
-    .eq('user_id', userId)
-    .order('submitted_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching user submissions:', error);
-    throw error;
-  }
-
-  return (data || []).map(transformSubmission);
-}
-
-// Get or create user by wallet address
-// Note: Using type assertion because Supabase's generated types infer `never` for inserts
-// due to RLS policies. Regenerate types with `npx supabase gen types` when CLI access is available.
-export async function getOrCreateUser(address: string, username?: string) {
-  // Try to fetch existing user
-  const existing = await getUserByAddress(address);
-  if (existing) {
-    return existing;
-  }
-
-  // Create new user
-  const { data, error } = await supabase
-    .from('users')
-    .insert({
-      wallet_address: address,
-      username: username || null,
-    } as never)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error creating user:', error);
-    throw error;
-  }
-
-  return transformUser(data as DbUser);
+  return transformUser(data);
 }
 
 // ============================================
-// Participant Functions
+// Participant Functions (now uses smash_participants)
 // ============================================
 
-export interface SmashParticipant {
+export interface SmashParticipantFrontend {
   id: string;
   smashId: string;
   userId: string;
@@ -340,20 +208,20 @@ export interface SmashParticipant {
 }
 
 // Transform database participant to frontend type
-export function transformParticipant(dbParticipant: Participant): SmashParticipant {
+export function transformParticipant(dbParticipant: DbSmashParticipant): SmashParticipantFrontend {
   return {
     id: dbParticipant.id,
-    smashId: dbParticipant.smash_id,
-    userId: dbParticipant.user_id,
-    joinedAt: new Date(dbParticipant.joined_at),
-    status: dbParticipant.status as ParticipantStatus,
+    smashId: dbParticipant.smash_id || '',
+    userId: dbParticipant.user_id || '',
+    joinedAt: new Date(dbParticipant.joined_at || Date.now()),
+    status: (dbParticipant.status as ParticipantStatus) || 'active',
   };
 }
 
 // Get participants for a smash
-export async function getParticipantsForSmash(smashId: string): Promise<SmashParticipant[]> {
+export async function getParticipantsForSmash(smashId: string): Promise<SmashParticipantFrontend[]> {
   const { data, error } = await supabase
-    .from('participants')
+    .from('smash_participants')
     .select('*')
     .eq('smash_id', smashId)
     .order('joined_at', { ascending: true });
@@ -369,7 +237,7 @@ export async function getParticipantsForSmash(smashId: string): Promise<SmashPar
 // Check if user has joined a smash
 export async function hasUserJoinedSmash(smashId: string, userId: string): Promise<boolean> {
   const { data, error } = await supabase
-    .from('participants')
+    .from('smash_participants')
     .select('id')
     .eq('smash_id', smashId)
     .eq('user_id', userId)
@@ -386,135 +254,10 @@ export async function hasUserJoinedSmash(smashId: string, userId: string): Promi
   return !!data;
 }
 
-// Join a smash
-export async function joinSmash(smashId: string, userId: string): Promise<SmashParticipant> {
-  // Check if already joined
-  const alreadyJoined = await hasUserJoinedSmash(smashId, userId);
-  if (alreadyJoined) {
-    throw new Error('You have already joined this smash');
-  }
-
-  // Ensure user exists in users table
-  await getOrCreateUser(userId);
-
-  // Create participant record
-  // Note: Using type assertion because Supabase's generated types infer `never` for inserts
-  const participantData: NewParticipant = {
-    smash_id: smashId,
-    user_id: userId,
-    status: 'active',
-  };
-
-  const { data, error } = await supabase
-    .from('participants')
-    .insert(participantData as never)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error joining smash:', error);
-    throw error;
-  }
-
-  return transformParticipant(data as Participant);
-}
-
-// Join a smash with payment (records tx hash)
-export async function joinSmashWithPayment(
-  smashId: string,
-  userId: string,
-  txHash: string,
-  tokenSymbol: 'ETH' | 'USDC',
-  amount: string
-): Promise<SmashParticipant> {
-  // Check if already joined
-  const alreadyJoined = await hasUserJoinedSmash(smashId, userId);
-  if (alreadyJoined) {
-    throw new Error('You have already joined this smash');
-  }
-
-  // Ensure user exists
-  await getOrCreateUser(userId);
-
-  // Get token ID from payment_tokens table
-  const { data: tokenData, error: tokenError } = await supabase
-    .from('payment_tokens')
-    .select('id')
-    .eq('symbol', tokenSymbol)
-    .single();
-
-  if (tokenError || !tokenData) {
-    console.error('Error finding token:', tokenError);
-    throw new Error(`Token ${tokenSymbol} not found`);
-  }
-
-  // Cast to get the id property (types resolve to never due to RLS)
-  const tokenId = (tokenData as { id: string }).id;
-
-  // Create payment transaction record
-  // Note: Using type assertion because Supabase's generated types infer `never` for inserts
-  const txInsert: NewPaymentTransaction = {
-    smash_id: smashId,
-    user_id: userId,
-    token_id: tokenId,
-    amount,
-    tx_hash: txHash,
-    tx_type: 'entry',
-    status: 'confirmed',
-  };
-
-  const { data: txData, error: txError } = await supabase
-    .from('payment_transactions')
-    .insert(txInsert as never)
-    .select()
-    .single();
-
-  if (txError) {
-    console.error('Error recording payment:', txError);
-    throw txError;
-  }
-
-  // Create participant record with payment reference
-  const participantData: NewParticipant = {
-    smash_id: smashId,
-    user_id: userId,
-    status: 'active',
-    payment_tx_id: (txData as PaymentTransaction).id,
-    paid_token_id: tokenId,
-  };
-
-  const { data, error } = await supabase
-    .from('participants')
-    .insert(participantData as never)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error joining smash:', error);
-    throw error;
-  }
-
-  return transformParticipant(data as Participant);
-}
-
-// Leave/withdraw from a smash
-export async function leaveSmash(smashId: string, userId: string): Promise<void> {
-  const { error } = await supabase
-    .from('participants')
-    .delete()
-    .eq('smash_id', smashId)
-    .eq('user_id', userId);
-
-  if (error) {
-    console.error('Error leaving smash:', error);
-    throw error;
-  }
-}
-
 // Get participant count for a smash
 export async function getParticipantCount(smashId: string): Promise<number> {
   const { count, error } = await supabase
-    .from('participants')
+    .from('smash_participants')
     .select('*', { count: 'exact', head: true })
     .eq('smash_id', smashId);
 
@@ -537,9 +280,9 @@ export interface AcceptedToken {
   contractAddress: string | null;
 }
 
-// Type for the joined query result (relationships aren't in auto-generated types)
+// Type for the joined query result
 type SmashTokenWithPayment = {
-  token_id: string;
+  payment_token_id: string;
   payment_tokens: {
     symbol: string;
     name: string;
@@ -553,7 +296,7 @@ export async function getAcceptedTokensForSmash(smashId: string): Promise<Accept
   const { data, error } = await supabase
     .from('smash_accepted_tokens')
     .select(`
-      token_id,
+      payment_token_id,
       payment_tokens (
         symbol,
         name,

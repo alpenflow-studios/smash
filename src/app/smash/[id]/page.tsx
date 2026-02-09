@@ -29,16 +29,16 @@ import {
   getSmashById,
   getSubmissionsForSmash,
   getParticipantsForSmash,
-  joinSmashWithPayment,
   hasUserJoinedSmash,
   getAcceptedTokensForSmash,
-  SmashParticipant,
+  SmashParticipantFrontend,
   AcceptedToken,
 } from '@/lib/queries';
+import { apiRequest } from '@/lib/api-client';
 import { mockSmashes } from '@/lib/mock-data';
 import { Smash, SmashStatus, SmashSubmission } from '@/types';
 import { ProofUploadDialog, ProofGallery } from '@/components/proof';
-import { ETH_USD_FALLBACK_PRICE } from '@/lib/constants';
+import { useEthPrice } from '@/hooks/useEthPrice';
 
 const getCategoryColor = (category: string) => {
   const colors = {
@@ -52,13 +52,16 @@ const getCategoryColor = (category: string) => {
 };
 
 const getStatusColor = (status: SmashStatus) => {
-  const colors = {
+  const colors: Record<SmashStatus, string> = {
     draft: 'bg-gray-500/10 text-gray-500',
     open: 'bg-blue-500/10 text-blue-500',
     active: 'bg-green-500/10 text-green-500',
     verification: 'bg-yellow-500/10 text-yellow-500',
     complete: 'bg-purple-500/10 text-purple-500',
     disputed: 'bg-red-500/10 text-red-500',
+    closed: 'bg-gray-500/10 text-gray-500',
+    judging: 'bg-orange-500/10 text-orange-500',
+    payout: 'bg-green-500/10 text-green-500',
   };
   return colors[status] || colors.draft;
 };
@@ -98,17 +101,20 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') || 'details';
-  const { authenticated, login, user } = usePrivy();
+  const { authenticated, login, user, getAccessToken } = usePrivy();
 
   const [smash, setSmash] = useState<Smash | null>(null);
   const [submissions, setSubmissions] = useState<SmashSubmission[]>([]);
-  const [participants, setParticipants] = useState<SmashParticipant[]>([]);
+  const [participants, setParticipants] = useState<SmashParticipantFrontend[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [proofDialogOpen, setProofDialogOpen] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [acceptedTokensData, setAcceptedTokensData] = useState<AcceptedToken[]>([]);
+
+  // Get live ETH price for USD conversion
+  const { price: ethPrice } = useEthPrice();
 
   // Get current user's wallet address from Privy
   const currentUserId = user?.wallet?.address || '';
@@ -199,8 +205,11 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
 
   const handlePaymentSuccess = async (txHash: string, token: TokenOption, amount: string) => {
     try {
-      // Record the payment in the database
-      await joinSmashWithPayment(id, currentUserId, txHash, token, amount);
+      // Record the payment via API route
+      await apiRequest('/api/smashes/join', {
+        body: { smashId: id, txHash, tokenSymbol: token, amount },
+        getAccessToken,
+      });
       setHasJoined(true);
       setShowPayment(false);
       // Refresh participants list
@@ -221,9 +230,9 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
     : smash?.stakesType === 'monetary' ? ['ETH', 'USDC'] : [];
 
   // Entry fee from smash record (stored in USDC equivalent)
-  // For ETH, we use a rough conversion (could be improved with price oracle)
+  // ETH amount derived from live Coinbase price feed
   const entryFeeUSDC = smash?.entryFee?.toString() || '0';
-  const entryFeeETH = smash?.entryFee ? (smash.entryFee / ETH_USD_FALLBACK_PRICE).toFixed(6) : '0';
+  const entryFeeETH = smash?.entryFee ? (smash.entryFee / ethPrice).toFixed(6) : '0';
 
   // Loading state
   if (loading) {
@@ -665,7 +674,6 @@ export default function SmashDetailPage({ params }: { params: Promise<{ id: stri
               open={proofDialogOpen}
               onOpenChange={setProofDialogOpen}
               smashId={id}
-              userId={currentUserId}
               onSuccess={fetchSubmissions}
             />
           </TabsContent>

@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useCreateSmash } from '@/store/use-create-smash';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/lib/supabase';
-import type { NewSmash } from '@/lib/database.types';
+import { apiUpload } from '@/lib/api-client';
 
 // Generate a random invite code for private smashes
 function generateInviteCode(): string {
@@ -18,33 +17,9 @@ function generateInviteCode(): string {
   return code;
 }
 
-// Upload cover image to Supabase Storage
-async function uploadCoverImage(file: File, smashId: string): Promise<string> {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `covers/${smashId}.${fileExt}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from('smash-proofs')
-    .upload(fileName, file, {
-      cacheControl: '3600',
-      upsert: true,
-    });
-
-  if (uploadError) {
-    console.error('Error uploading cover image:', uploadError);
-    throw uploadError;
-  }
-
-  const { data: urlData } = supabase.storage
-    .from('smash-proofs')
-    .getPublicUrl(fileName);
-
-  return urlData.publicUrl;
-}
-
 export function StepReview() {
   const router = useRouter();
-  const { authenticated, login, user } = usePrivy();
+  const { authenticated, login, user, getAccessToken } = usePrivy();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,13 +43,12 @@ export function StepReview() {
       // Generate invite code for private smashes
       const inviteCode = state.visibility === 'private' ? generateInviteCode() : null;
 
-      // Build the insert object with all fields
-      const smashData: NewSmash = {
+      // Build the smash data payload
+      const smashData = {
         title: state.title,
         description: state.description || null,
         category: state.category,
-        status: 'open', // Start as open so users can join
-        creator_id: creatorId,
+        status: 'open',
         entry_fee: state.stakesType === 'monetary' ? state.entryFee : null,
         prize_pool: state.stakesType === 'monetary' ? state.entryFee : 0,
         min_participants: state.minParticipants,
@@ -90,42 +64,17 @@ export function StepReview() {
         dispute_window_hours: state.disputeWindowHours,
       };
 
-      // Create the smash in Supabase
-      // Note: Using type assertion because Supabase's generated types infer `never` for inserts
-      // due to RLS policies. Regenerate types with `npx supabase gen types` when CLI access is available.
-      const { data, error: supabaseError } = await supabase
-        .from('smashes')
-        .insert(smashData as never)
-        .select('id')
-        .single<{ id: string }>();
-
-      if (supabaseError) {
-        throw supabaseError;
-      }
-
-      if (!data) {
-        throw new Error('No data returned from insert');
-      }
-
-      // Upload cover image if provided
+      // Create the smash via API route (handles auth + cover image upload server-side)
+      const formData = new FormData();
+      formData.append('data', JSON.stringify(smashData));
       if (state.coverImage) {
-        try {
-          const coverUrl = await uploadCoverImage(state.coverImage, data.id);
-          // Update the smash with the cover image URL
-          // Note: Using type assertion because Supabase's generated types infer `never` for updates
-          await supabase
-            .from('smashes')
-            .update({ cover_image_url: coverUrl } as never)
-            .eq('id', data.id);
-        } catch (uploadErr) {
-          console.warn('Failed to upload cover image:', uploadErr);
-          // Don't fail the whole creation if cover upload fails
-        }
+        formData.append('coverImage', state.coverImage);
       }
+      const { id: newSmashId } = await apiUpload<{ id: string }>('/api/smashes', formData, getAccessToken);
 
       // Reset form and redirect
       reset();
-      router.push(`/smash/${data.id}`);
+      router.push(`/smash/${newSmashId}`);
     } catch (err) {
       console.error('Failed to create smash:', err);
       setError(err instanceof Error ? err.message : 'Failed to create smash');

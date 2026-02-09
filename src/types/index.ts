@@ -1,12 +1,14 @@
 export type SmashCategory = 'fitness' | 'gaming' | 'creative' | 'social' | 'other';
 
-export type SmashStatus = 'draft' | 'open' | 'active' | 'verification' | 'complete' | 'disputed';
+export type SmashStatus = 'draft' | 'open' | 'active' | 'verification' | 'complete' | 'disputed' | 'closed' | 'judging' | 'payout';
 
 export type VerificationMethod = 'wearable' | 'visual' | 'participant' | 'audience' | 'hybrid';
 
 export type Visibility = 'public' | 'private';
 
 export type StakesType = 'monetary' | 'prize' | 'bragging';
+
+export type SmashMode = 'pool' | 'free' | 'daily';
 
 export interface Smash {
   id: string;

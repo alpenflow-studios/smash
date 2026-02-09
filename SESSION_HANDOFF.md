@@ -6,111 +6,105 @@
 
 ## Last Session
 
-- **Date**: 2026-02-06
-- **Duration**: ~10 messages
+- **Date**: 2026-02-08 (session 3)
 - **Branch**: `main`
 
 ---
 
-## What Was Done
+## What Was Done (Session 3)
 
-1. **Fixed L1** - Extracted magic numbers to constants
-   - Created `src/lib/constants.ts` with named constants
-   - `TOTAL_CREATE_STEPS`, `MAX_PROOF_FILE_SIZE_MB/BYTES`, `BYTES32_HEX_LENGTH`
-   - `ETH_USD_FALLBACK_PRICE`, `DEFAULT_MAX_PARTICIPANTS`
-   - Updated all usages across codebase
+1. **Phase 5 COMPLETE — All client-side files updated to use API routes**
 
-2. **Fixed L2** - Resolved type confusion with dual imports
-   - Renamed DB types in `database.types.ts`: `DbUser`, `DbSmash`, `DbSubmission`, `DbBet`
-   - Updated `queries.ts` imports - no more aliasing needed
-   - Clear separation: `Db*` types = database rows, frontend types = `@/types`
+   - `src/lib/queries.ts` — Removed 7 write functions (`getOrCreateUser`, `joinSmash`, `joinSmashWithPayment`, `leaveSmash`, `submitProof`, `uploadProofFile`, `createSubmission`). Removed unused type imports. All reads, transforms, and type exports kept.
 
-3. **Fixed L3** - Form state reset on navigation
-   - Added `useEffect` cleanup in `src/app/create/page.tsx`
-   - Form resets when user navigates away from create page
+   - `src/components/create/StepReview.tsx` — Removed `supabase` import, `NewSmash` type, `uploadCoverImage()`. Now uses `apiUpload('/api/smashes', formData, getAccessToken)`.
 
-4. Verified build passes after all changes
+   - `src/app/smash/[id]/page.tsx` — Removed `joinSmashWithPayment` import. Now uses `apiRequest('/api/smashes/join', ...)`. Removed `userId` prop from `<ProofUploadDialog>`. Updated `getStatusColor` for V3 statuses.
 
-5. Updated `CURRENT_ISSUES.md` with resolutions R17-R19
+   - `src/components/proof/ProofUploadDialog.tsx` — Removed `submitProof` import, `userId` prop. Now uses `apiUpload('/api/submissions', formData, getAccessToken)` with `usePrivy()`.
 
----
+2. **CLAUDE.md project ID updated** — All 4 references `pdjrexphjivdwfbvgbqm` → `utbkhzooafzepabtrhnc`
 
-## What's In Progress
+3. **V3 frontend types added** — `SmashStatus` now includes `closed`, `judging`, `payout`. New `SmashMode` type (`pool`, `free`, `daily`).
 
-Nothing in progress - clean handoff.
+4. **Env vars configured** — Michael added `SUPABASE_SERVICE_ROLE_KEY` (JWT), `PRIVY_APP_SECRET`, and fixed `NEXT_PUBLIC_SUPABASE_ANON_KEY` to use JWT format (not `sb_publishable_` format).
+
+5. **Build verified clean** — `npm run build` passes with zero errors.
 
 ---
 
-## What's Next
+## Build State
 
-*All tracked issues resolved!* Potential next steps:
-
-1. **Price Oracle** - Replace `ETH_USD_FALLBACK_PRICE` with live price feed
-
-2. **Supabase CLI Setup** (optional)
-   - Run `supabase login` to authenticate CLI
-   - Then regenerate types: `npx supabase gen types typescript --project-id pdjrexphjivdwfbvgbqm > src/lib/database.types.ts`
-   - This would allow removing the `as never` workarounds
-
-3. **Test Coverage** - Add unit/integration tests
+- `npm run build`: ✅ PASSES
+- All 5 API routes compile and appear in build output
+- No TypeScript errors
 
 ---
 
-## Decisions Made
+## Env Vars (All Set in .env.local)
 
-- **Entry fee storage**: `smash.entry_fee` stores USDC amount; ETH derived via conversion
-- **Token fallback**: If `smash_accepted_tokens` is empty, fall back to stakes-type logic
-- **Type assertions**: Using `as never` with documentation comments instead of `as any`. This avoids eslint warnings and provides context for why the cast is needed.
+```
+NEXT_PUBLIC_PRIVY_APP_ID=cmkj9yc3t03xul20c3ft87czh
+PRIVY_APP_SECRET=✅ set
+NEXT_PUBLIC_SUPABASE_URL=https://utbkhzooafzepabtrhnc.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=✅ set (JWT format)
+SUPABASE_SERVICE_ROLE_KEY=✅ set (JWT format)
+NEXT_PUBLIC_CHAIN_ID=84532
+NEXT_PUBLIC_SMASH_VAULT_ADDRESS=0xF2b3001f69A78574f6Fcf83e14Cf6E7275fB83De
+NEXT_PUBLIC_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+```
 
----
-
-## Open Questions
-
-- [x] Verify `smash_accepted_tokens` table exists — confirmed, schema has `smash_id`, `token_id`
-- [x] Decide if unused hooks (`useStore`, `useSingleTokenBalance`) should be deleted — deleted
-- [ ] Consider adding price oracle for ETH/USD conversion (uses `ETH_USD_FALLBACK_PRICE` constant)
-
----
-
-## State of Tests
-
-- `npm run build`: ✅ Passes
-- `forge test`: Not run (no Foundry setup in this repo)
-- `npm test`: Not configured
-- `npm run lint`: Not run this session
+**Important**: Supabase anon keys must be JWT format (`eyJhbG...`), NOT the new `sb_publishable_` format. The JS client needs JWTs.
 
 ---
 
-## Environment Notes
+## Architecture (Complete — No More Code Changes Needed)
 
-- Working directory: `/Users/mpr/first/hello_foundry/.github/workflows/smash`
-- Branch: `main`
-- Supabase CLI: Not authenticated (requires `supabase login`)
+```
+Reads:  Browser → Supabase (anon key, SELECT only) → DB
+Writes: Browser → API Route → verifyAuth(Privy token) → supabaseAdmin (service_role) → DB
+```
+
+All client-side write paths now go through API routes. No direct Supabase writes remain.
+
+### API Routes Created (Phases 1-4, session 2)
+- `POST /api/users` — get-or-create user
+- `POST /api/smashes` — create smash (FormData with optional cover image)
+- `POST /api/smashes/join` — join smash (free or paid)
+- `DELETE /api/smashes/leave` — leave smash
+- `POST /api/submissions` — submit proof (FormData with file)
+
+### Server Utilities Created (session 2)
+- `src/lib/supabase-server.ts` — Supabase client with service_role key
+- `src/lib/auth.ts` — `verifyAuth(request)` extracts verified wallet from Privy token
+- `src/lib/api-client.ts` — Client helpers `apiRequest()` and `apiUpload()`
+- `src/lib/validations.ts` — Zod schemas for API request validation
 
 ---
 
-## Key Files Reference
+## What's Next (Priority Order)
 
-| File | Purpose |
-|------|---------|
-| `CLAUDE.md` | Project context, links, domain concepts |
-| `docs/PRD.md` | Full smash spec, lifecycle, schema |
-| `CURRENT_ISSUES.md` | Issue tracker with severity levels |
-| `src/lib/constants.ts` | Named constants (file sizes, prices, limits) |
-| `src/lib/queries.ts` | All Supabase queries |
-| `src/hooks/usePayment.ts` | Blockchain payment logic |
+1. **End-to-end testing** — `npm run dev` → create smash → join → submit proof. Check browser console + server logs.
+2. **M1 — Verify `smash-proofs` storage bucket** exists on Supabase project `utbkhzooafzepabtrhnc`
+3. **M2 — Seed `payment_tokens` table** with ETH/USDC records (needed for join-with-payment flow)
+4. **H3 — Fix `update_updated_at` function** — mutable search_path in Supabase DB
+5. **Uncommitted changes** — All session 2+3 changes are uncommitted. Consider committing.
 
 ---
 
 ## Quick Start for Next Session
 
 ```
-Continue working on smash.xyz
+Continue working on smash.xyz at /Users/mpr/first/hello_foundry/.github/workflows/smash
 
-All tracked issues (M1-M6, L1-L3) resolved. Codebase is clean.
+ALL CODE IS DONE:
+- Phases 1-5 complete ✅
+- Env vars configured ✅
+- Build passes clean ✅
 
-Next priorities:
-- Price oracle integration
-- Test coverage
-- Supabase CLI auth for better types
+NEXT STEPS:
+1. npm run dev → test create/join/submit flow end-to-end
+2. Check Supabase dashboard for smash-proofs storage bucket
+3. Seed payment_tokens table (ETH + USDC records)
+4. Commit all changes when testing passes
 ```

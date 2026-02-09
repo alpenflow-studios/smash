@@ -1,7 +1,7 @@
 # CURRENT_ISSUES.md
 
 > **Purpose**: Track known bugs, blockers, and tech debt. Check before starting any task.
-> **Last Audit**: Feb 6, 2026
+> **Last Audit**: Feb 8, 2026 (session 3)
 
 ---
 
@@ -9,7 +9,7 @@
 
 | # | Issue | File/Area | Notes |
 |---|-------|-----------|-------|
-| — | *All critical issues resolved* | — | — |
+| — | None | — | All code complete, build passes, env vars set |
 
 ---
 
@@ -17,7 +17,7 @@
 
 | # | Issue | File/Area | Notes |
 |---|-------|-----------|-------|
-| — | *All high-priority issues resolved* | — | — |
+| H3 | `update_updated_at` function security | Supabase DB | Mutable search_path. Needs `SET search_path = public`. Fix in SQL Editor. |
 
 ---
 
@@ -25,12 +25,10 @@
 
 | # | Issue | File/Area | Notes |
 |---|-------|-----------|-------|
-| ~~M1~~ | ~~4 TODO comments unaddressed~~ | — | Resolved Feb 6 - no TODOs remain |
-| ~~M2~~ | ~~Placeholder console.logs~~ | — | Resolved Feb 6 - handlers now navigate to detail page |
-| ~~M3~~ | ~~Unused `useStore` hook~~ | — | Resolved Feb 6 - file deleted |
-| ~~M4~~ | ~~Unused `useSingleTokenBalance`~~ | — | Resolved Feb 6 - export removed |
-| ~~M5~~ | ~~Participant status type mismatch~~ | — | Resolved Feb 6 - added `ParticipantStatus` type |
-| ~~M6~~ | ~~UUID not validated in uuidToBytes32~~ | — | Resolved Feb 6 |
+| M1 | Storage bucket may not exist on new project | Supabase | `smash-proofs` bucket needed for proof uploads + cover images. Check dashboard. |
+| M2 | Payment tokens not seeded | Supabase | ETH/USDC records needed in `payment_tokens` table for join-with-payment |
+| M3 | Old project data not migrated | Supabase | Any data in old project needs migration to `utbkhzooafzepabtrhnc` |
+| M4 | All changes uncommitted | git | Sessions 2+3 changes need to be committed |
 
 ---
 
@@ -38,9 +36,9 @@
 
 | # | Issue | File/Area | Notes |
 |---|-------|-----------|-------|
-| ~~L1~~ | ~~Magic numbers throughout~~ | — | Resolved Feb 6 - created `src/lib/constants.ts` |
-| ~~L2~~ | ~~Type confusion - dual Smash imports~~ | — | Resolved Feb 6 - renamed to `DbSmash`, `DbUser`, etc. |
-| ~~L3~~ | ~~Form state persists after navigation~~ | — | Resolved Feb 6 - reset on unmount in create page |
+| L1 | `as never` type assertions | API routes + queries.ts | Needed for Supabase insert due to RLS type inference |
+| L2 | No test coverage | Project-wide | `npm test` not configured |
+| L3 | `getUser(userId)` deprecated in Privy | `src/lib/auth.ts` | Works but has rate limits at scale. Migrate to `getUser({idToken})` later. |
 
 ---
 
@@ -48,31 +46,20 @@
 
 | # | Issue | Resolution | Date |
 |---|-------|------------|------|
-| R1 | Database schema mismatch | Added missing columns, changed creator_id to TEXT | Jan 26 |
-| R2 | Missing RLS INSERT policy | Fixed in new schema | Jan 26 |
-| R3 | Project folder confusion | Correct path: `.github/workflows/smash` | Jan 26 |
-| R4 | Docs disorganized | Created CLAUDE.md, docs/, tasks/ structure | Feb 5 |
-| R5 | Payment amount not recorded | Added `amount` param to `joinSmashWithPayment()` flow | Feb 6 |
-| R6 | Entry fees hardcoded | Added `getAcceptedTokensForSmash()`, dynamic fee loading | Feb 6 |
-| R7 | Memory leak in ProofUploadDialog | Added `URL.revokeObjectURL()` in cleanup paths | Feb 6 |
-| R8 | Missing null check on fees | Wrapped payment flow in try-catch | Feb 6 |
-| R9 | Error not caught in approveUSDC flow | Wrapped payment flow in try-catch | Feb 6 |
-| R10 | UUID not validated in uuidToBytes32 | Added UUID regex validation | Feb 6 |
-| R11 | 8x `as any` type casts in DB operations | Replaced with `as never` + documentation comments. Root cause: Supabase types infer `never` for insert/update due to RLS. Fix requires `npx supabase gen types` with CLI auth. | Feb 6 |
-| R12 | TODO comments unaddressed | Verified none remain in src/ | Feb 6 |
-| R13 | Homepage Join/Bet handlers were stubs | Implemented navigation to detail page with tab param | Feb 6 |
-| R14 | Unused `useStore` hook | Deleted `src/store/use-store.ts` - only `useCreateSmash` was used | Feb 6 |
-| R15 | Unused `useSingleTokenBalance` export | Removed from `src/hooks/useTokenBalance.ts` | Feb 6 |
-| R16 | Participant status type mismatch | Added `ParticipantStatus` type to `database.types.ts`, used in `queries.ts` | Feb 6 |
-| R17 | Magic numbers throughout | Created `src/lib/constants.ts` with named constants | Feb 6 |
-| R18 | Type confusion - dual Smash imports | Renamed DB types to `DbSmash`, `DbUser`, `DbSubmission`, `DbBet` | Feb 6 |
-| R19 | Form state persists after navigation | Added `useEffect` cleanup in create page to reset on unmount | Feb 6 |
+| C1 | Build broken (SmashParticipant type) | Fixed type to SmashParticipantFrontend | Feb 8 |
+| C2 | Phase 5 client updates not done | All 4 files updated to use API routes | Feb 8 |
+| H1 | Supabase CLI token exposed | User regenerated token | Feb 8 |
+| H2 | RLS security — direct client writes | Server-side API routes complete (Phases 1-5) | Feb 8 |
+| H4 | CLAUDE.md references old project | Updated all 4 occurrences to `utbkhzooafzepabtrhnc` | Feb 8 |
+| H5 | Frontend types don't match V3 lifecycle | Added `closed`, `judging`, `payout` + `SmashMode` type | Feb 8 |
+| H6 | Env vars not added | All env vars set in .env.local (JWT format) | Feb 8 |
 
 ---
 
 ## Next Session Priority
 
-*All tracked issues resolved. Consider:*
-- Price oracle integration (replace `ETH_USD_FALLBACK_PRICE` constant)
-- Supabase CLI auth for proper type generation
-- Additional test coverage
+1. **End-to-end testing** — `npm run dev` and test full flow
+2. **M1** — Verify smash-proofs storage bucket
+3. **M2** — Seed payment tokens
+4. **M4** — Commit all changes
+5. **H3** — Fix update_updated_at search_path
